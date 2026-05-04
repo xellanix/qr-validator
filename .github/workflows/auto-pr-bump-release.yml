@@ -1,0 +1,219 @@
+name: PR Merge Auto Bump & Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+# Ensure workflows queue up sequentially if multiple PRs are merged at once
+concurrency:
+  group: version-bump-and-release
+  cancel-in-progress: false
+
+env:
+  # Update this to point to your actual version.json path
+  VERSION_FILE_PATH: "frontend/data/version.json"
+
+jobs:
+  version_bump:
+    # Only run if the PR was actually merged (not just closed without merging)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.apply_bump.outputs.version }}
+      skip: ${{ steps.extract_bump.outputs.skip }}
+
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Extract Version Bump from PR
+        id: extract_bump
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Find '## Version Bump', skip empty lines, grab the first non-empty line containing the version
+          BUMP=$(echo "$PR_BODY" | awk '/## Version Bump/{getline; while($0 ~ /^[[:space:]]*$/) getline; print; exit}' | tr -d '\r' | xargs)
+          
+          if [[ ! "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "No valid version bump format (X.Y.Z) found under '## Version Bump'. Exiting."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Found bump intent: $BUMP"
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Calculate and Apply Bump (pwsh)
+        if: steps.extract_bump.outputs.skip == 'false'
+        id: apply_bump
+        shell: pwsh
+        run: |
+          $bumpInput = "${{ steps.extract_bump.outputs.bump }}"
+          $filePath = "${{ env.VERSION_FILE_PATH }}"
+
+          # Initialize file if missing
+          if (-not (Test-Path $filePath)) {
+              '{"version":"0.0.0","commit":"","date":""}' | Set-Content -Path $filePath
+          }
+
+          $jsonContent = Get-Content -Path $filePath -Raw | ConvertFrom-Json
+
+          if ($null -eq $jsonContent -or $jsonContent.GetType().Name -ne "PSCustomObject") {
+              $jsonContent = [PSCustomObject]@{
+                  version = "0.0.0"
+                  commit  = ""
+                  date    = ""
+              }
+          } else {
+              $requiredKeys = @('commit', 'date')
+
+              if (-not (Get-Member -InputObject $jsonContent -Name 'version')) {
+                  Add-Member -InputObject $jsonContent -NotePropertyName 'version' -NotePropertyValue "0.0.0"
+              }
+
+              foreach ($key in $requiredKeys) {
+                  if (-not (Get-Member -InputObject $jsonContent -Name $key)) {
+                      Add-Member -InputObject $jsonContent -NotePropertyName $key -NotePropertyValue ""
+                  }
+              }
+          }
+
+          $currentParts = $jsonContent.version.Split('.')
+          $inputParts = $bumpInput.Split('.')
+          
+          if ($inputParts.Count -ne 3) {
+              Write-Host "Error: Invalid version bump format." -ForegroundColor Red
+              exit 1
+          }
+
+          $iMajor = [int]$inputParts[0]
+          $iMinor = [int]$inputParts[1]
+          $iPatch = [int]$inputParts[2]
+
+          $newMajor = [int]$currentParts[0] + $iMajor
+          if ($iMajor -gt 0) {
+              $newMinor = $iMinor
+          } else {
+              $newMinor = [int]$currentParts[1] + $iMinor
+          }
+          if (($iMajor -gt 0) -or ($iMinor -gt 0)) {
+              $newPatch = $iPatch
+          } else {
+              $newPatch = [int]$currentParts[2] + $iPatch
+          }
+
+          $newVersionString = "$newMajor.$newMinor.$newPatch"
+          $jsonContent.version = $newVersionString
+          $jsonContent.commit = "${{ github.event.pull_request.merge_commit_sha }}"
+          
+          # Force English formatting for consistent ISO 8601 parsing across different runner regions
+          $jsonContent.date = (Get-Date).ToUniversalTime().ToString("o")
+
+          $jsonContent | ConvertTo-Json -Depth 10 -Compress | Set-Content -Path $filePath
+
+          Write-Host "New Version: $newVersionString"
+          
+          # Append to GITHUB_OUTPUT for the next steps
+          "version=$newVersionString" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Commit and Push Version Bump
+        if: steps.extract_bump.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          NEW_VERSION="${{ steps.apply_bump.outputs.version }}"
+          FILE_PATH="${{ env.VERSION_FILE_PATH }}"
+          
+          git add "$FILE_PATH"
+          git commit -m "chore(app): bump version to $NEW_VERSION"
+          
+          # Rebase right before pushing to resolve extreme race conditions
+          git pull --rebase origin main
+          git push origin main
+  
+  build_app:
+    needs: version_bump
+    if: needs.version_bump.outputs.skip == 'false'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.12
+
+      - name: Install Dependencies
+        shell: bash
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: bun install
+
+      - name: Build App
+        shell: bash
+        run: |
+          bun run build
+
+          # Rename the package for the specific platform
+          mv "./dist/server/premark.exe" "./dist/premark-windows-x64.exe"
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: ./dist/*.exe
+
+  create_release:
+    needs: [version_bump, build_app]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binary
+          path: ./dist
+      
+      - name: Fetch PR Commits for Changelog
+        id: pr_changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          echo "Fetching commits exclusively for PR #$PR_NUMBER..."
+          
+          # Formats isolated PR commits exactly like the auto-release.yml logic
+          LOGS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[] | "- \(.messageHeadline) ([\(.oid | .[0:7])](https://github.com/${{ github.repository }}/commit/\(.oid)))"')
+          
+          # Handle multiline output safely
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "logs<<$EOF" >> $GITHUB_OUTPUT
+          echo "$LOGS" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version_bump.outputs.new_version }}
+        run: |
+          echo "Creating release v$VERSION..."
+
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes "${{ steps.pr_changelog.outputs.logs }}" \
+            --target main \
+            ./dist/*.exe
