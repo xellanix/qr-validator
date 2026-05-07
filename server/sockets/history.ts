@@ -37,11 +37,7 @@ export function history(io: Server, socket: Socket) {
 
     socket.on(
         "client:history:validation",
-        async (
-            qrData: string,
-            status: ScanStatus,
-            callback: SocketCallback<string>,
-        ) => {
+        async (qrData: string, status: ScanStatus, callback: SocketCallback<string>) => {
             const user: User | undefined = socket.data.user;
 
             if (!user || user.authorizeLevel < 1) {
@@ -95,7 +91,7 @@ export function history(io: Server, socket: Socket) {
         scanHistory = scanHistory.filter((entry) => entry.id !== idToDelete);
         if (scanHistory.length < initialLength) {
             await writeHistoryToFile(scanHistory);
-            io.emit("history-update", scanHistory);
+            io.emit("server:history:update", scanHistory);
         }
     });
 }
