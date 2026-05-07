@@ -11,15 +11,15 @@ export default defineConfig({
     ],
     server: {
         allowedHosts: [".trycloudflare.com"],
-        port: 26042,
+        port: 26052,
         proxy: {
             "/api/socket_io/": {
-                target: "ws://localhost:26041",
+                target: "ws://localhost:26051",
                 changeOrigin: true,
                 ws: true,
             },
             "/api/assets/": {
-                target: "http://localhost:26041",
+                target: "http://localhost:26051",
                 changeOrigin: true,
             },
         },

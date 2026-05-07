@@ -8,8 +8,8 @@ import { history } from "$/sockets/history";
 import { report } from "$/sockets/report";
 import { security } from "$/sockets/security";
 
-const SERVER_PORT = 26041;
-const FRONTEND_PORT = 26042;
+const SERVER_PORT = 26051;
+const FRONTEND_PORT = 26052;
 const isProd = process.env.NODE_ENV === "production";
 
 const tunnelMgr = TunnelManager.getInstance();

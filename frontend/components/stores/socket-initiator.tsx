@@ -18,11 +18,11 @@ export function SocketInitiator() {
         // If we are accessing the Vite dev server locally or it's running in DEV mode,
         // point to the Bun backend port
         if (
-            origin.includes("localhost:26042") ||
-            origin.includes("127.0.0.1:26042") ||
+            origin.includes("localhost:26052") ||
+            origin.includes("127.0.0.1:26052") ||
             import.meta.env.DEV
         ) {
-            socketUrl = "http://localhost:26041";
+            socketUrl = "http://localhost:26051";
         }
         const newSocket = io(socketUrl, {
             path: "/api/socket_io",
