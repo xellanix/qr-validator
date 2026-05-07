@@ -111,6 +111,6 @@ console.log("> Execution directory:", execDir());
 console.log("> Public directory   :", publicDir());
 
 if (isProd && process.env.ALREADY_OPENED !== "true") {
-    void open(`http://localhost:${isProd ? SERVER_PORT : FRONTEND_PORT}/master`);
+    void open(`http://localhost:${isProd ? SERVER_PORT : FRONTEND_PORT}/console`);
     process.env.ALREADY_OPENED = "true";
 }

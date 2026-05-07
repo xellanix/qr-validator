@@ -16,7 +16,7 @@ export function publicDir(...segments: string[]) {
     if (!PUBLIC_BASE) {
         const base = execDir();
         const isProd = process.env.NODE_ENV === "production";
-        PUBLIC_BASE = join(base, "public", !isProd && "__");
+        PUBLIC_BASE = join(base, "public", !isProd ? "__" : "");
     }
     return join(PUBLIC_BASE, ...segments);
 }
