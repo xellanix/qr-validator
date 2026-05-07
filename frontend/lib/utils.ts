@@ -1,0 +1,78 @@
+import type { ClassValue } from "clsx";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
+
+/**
+ * Creates a singleton async loader that respects parameters.
+ * Ensures that an expensive async function is only ever executed once per unique set of arguments.
+ * Subsequent calls with the same arguments while the first is in-flight will wait for the original
+ * to complete and receive its result. After completion, the result is cached per argument combination.
+ *
+ * @param loader - The expensive async function to execute.
+ * @returns A new function that acts as a singleton gateway to your loader, keyed by arguments.
+ *
+ * @example
+ * const getDataset = createSingletonAsyncLoader(async (userId: string, page: number) => {
+ *     const res = await fetch(`./api/data?user=${userId}&page=${page}`);
+ *     return res.json();
+ * });
+ *
+ * await getDataset("alice", 1); // fetches
+ * await getDataset("alice", 1); // cached
+ * await getDataset("bob", 1);   // fetches separately
+ */
+export function createSingletonAsyncLoader<TArgs extends unknown[], T>(
+    loader: (...args: TArgs) => Promise<T>,
+): (...args: TArgs) => Promise<T> {
+    const cache = new Map<
+        string,
+        { pending: Promise<T> | null; result: T | undefined; hasResult: boolean }
+    >();
+
+    return async (...args: TArgs): Promise<T> => {
+        const key = JSON.stringify(args);
+
+        if (!cache.has(key)) {
+            cache.set(key, { pending: null, result: undefined, hasResult: false });
+        }
+
+        const entry = cache.get(key)!;
+
+        // 1. If we have a cached result, return it immediately.
+        if (entry.hasResult) {
+            console.log("Returning cached result.");
+            return entry.result as T;
+        }
+
+        // 2. If a request is already in flight, wait for it to finish.
+        if (entry.pending) {
+            console.log("Another request is in flight. Waiting...");
+            return entry.pending;
+        }
+
+        // 3. This is the first request. Execute the loader.
+        console.log("First request. Starting the expensive loader...");
+        entry.pending = loader(...args);
+
+        try {
+            const result = await entry.pending;
+            // Cache the result for future calls
+            entry.result = result;
+            entry.hasResult = true;
+            console.log("Loader finished. Caching result.");
+            return result;
+        } catch (error) {
+            // If it fails, don't cache. Let the next call try again.
+            console.error("Loader failed:", error);
+            throw error; // Re-throw the error so the caller can handle it
+        } finally {
+            // 4. Clear the pending promise so the next call (if there was an error)
+            // or subsequent calls (after a cache reset, if implemented) can proceed.
+            entry.pending = null;
+        }
+    };
+}
