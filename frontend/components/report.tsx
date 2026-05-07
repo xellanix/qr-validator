@@ -8,6 +8,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { compareNullableStrings } from "@/lib/utils";
 import { useHistoryStore } from "@/stores/history.store";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
@@ -42,7 +43,7 @@ type JoinedDatasetType = Dataset & {
 };
 
 const finalPresent = (initial: string | undefined, status: string | undefined) => {
-    return initial === "Yes" && status === "Valid" ? "Yes" : "No";
+    return initial === "Yes" && status != null ? "Yes" : "No";
 };
 
 export function ReportView() {
@@ -82,9 +83,14 @@ export function ReportView() {
     }, [history, dataset]);
 
     const sortedDataset = useMemo(() => {
-        return [...joinedDataset].sort((a, b) =>
-            finalPresent(a.present, a.status).localeCompare(finalPresent(b.present, b.status)),
-        );
+        return [...joinedDataset].sort((a, b) => {
+            const c = finalPresent(a.present, a.status).localeCompare(
+                finalPresent(b.present, b.status),
+            );
+            if (c !== 0) return c;
+
+            return compareNullableStrings(a.status, b.status);
+        });
     }, [joinedDataset]);
 
     const filteredDataset = useMemo(() => {
@@ -321,7 +327,13 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
         <TableRow>
             <TableCell className="text-center">
                 <Badge
-                    variant={present === "Yes" && status === "Valid" ? "default" : "destructive"}
+                    variant={
+                        present === "Yes"
+                            ? status === "Valid"
+                                ? "default"
+                                : "warning"
+                            : "destructive"
+                    }
                 >
                     {finalPresent(present, status)}
                 </Badge>

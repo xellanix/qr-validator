@@ -76,3 +76,25 @@ export function createSingletonAsyncLoader<TArgs extends unknown[], T>(
         }
     };
 }
+
+/**
+ * Compares two nullable strings with configurable null positioning.
+ */
+export function compareNullableStrings(
+    a: string | null | undefined,
+    b: string | null | undefined,
+    nullPosition: "first" | "last" = "first",
+    order: "asc" | "desc" = "asc",
+): number {
+    // 1. Handle cases where both are null/undefined
+    if (a == null && b == null) return 0;
+
+    // 2. Handle null/undefined positioning
+    if (a == null) return nullPosition === "first" ? -1 : 1;
+    if (b == null) return nullPosition === "first" ? 1 : -1;
+
+    // 3. Both values exist, perform standard string comparison
+    const result = a.localeCompare(b);
+
+    return order === "asc" ? result : -result;
+}
