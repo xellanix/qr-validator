@@ -67,23 +67,23 @@ export function AuthView() {
     };
 
     return (
-        <Card className="size-full">
-            <CardHeader>
+        <Card className="size-full p-6 *:px-0 overflow-y-auto gap-0">
+            <CardHeader className="sticky top-0 bg-inherit pb-6">
                 <CardTitle>Authentication Required</CardTitle>
                 <CardDescription>
                     Provide your access token by pasting it or uploading a QR code image.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Input
-                        type="text"
-                        placeholder="Enter encrypted token"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && attemptAuth(token)}
-                        disabled={isLocked}
-                    />
+            <CardContent className="flex flex-col gap-4">
+                <Input
+                    type="text"
+                    placeholder="Enter encrypted token"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && attemptAuth(token)}
+                    disabled={isLocked}
+                />
+                <div className="flex flex-col gap-2">
                     <Button
                         onClick={() => attemptAuth(token)}
                         className="w-full"
@@ -91,36 +91,37 @@ export function AuthView() {
                     >
                         Authenticate
                     </Button>
-                </div>
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="text-muted-foreground bg-white px-2 dark:bg-gray-950">
-                            Or
-                        </span>
-                    </div>
-                </div>
 
-                <div>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                        disabled={isLocked}
-                    />
-                    <Button
-                        onClick={() => fileInputRef.current?.click()}
-                        variant="outline"
-                        className="w-full"
-                        disabled={isLocked}
-                    >
-                        <HugeiconsIcon icon={Upload01Icon} className="mr-2 size-4" /> Upload Auth QR
-                        Code
-                    </Button>
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="text-muted-foreground bg-white px-2 dark:bg-gray-950">
+                                Or
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="contents">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isLocked}
+                        />
+                        <Button
+                            onClick={() => fileInputRef.current?.click()}
+                            variant="outline"
+                            className="w-full"
+                            disabled={isLocked}
+                        >
+                            <HugeiconsIcon icon={Upload01Icon} className="mr-2 size-4" /> Upload
+                            Auth QR Code
+                        </Button>
+                    </div>
                 </div>
 
                 {error && <p className="text-center text-sm font-medium text-red-500">{error}</p>}

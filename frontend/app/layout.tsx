@@ -23,8 +23,12 @@ export default function Layout() {
 
 function AuthGuard() {
     // If not authenticated after loading, show the login screen
-    if (useUserStore((s) => !s.user)) {
-        return <AuthView />;
+    if (useUserStore((s) => !s.isAuthenticated)) {
+        return (
+            <div className="flex flex-col size-full overflow-hidden">
+                <AuthView />
+            </div>
+        );
     }
 
     return <Outlet />;

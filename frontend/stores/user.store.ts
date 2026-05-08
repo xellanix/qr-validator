@@ -6,6 +6,7 @@ interface UserState {
     canScan: boolean;
     canReport: boolean;
     canDelete: boolean;
+    isAuthenticated: boolean;
 }
 
 interface UserActions {
@@ -19,9 +20,16 @@ export const useUserStore = create<UserStore>((set) => ({
     canScan: false,
     canReport: false,
     canDelete: false,
+    isAuthenticated: false,
 
     setUser: (user) => {
         const level = user?.authorizeLevel ?? 0;
-        set({ user, canScan: level >= 1, canReport: level >= 2, canDelete: level >= 2 });
+        set({
+            user,
+            canScan: level >= 1,
+            canReport: level >= 2,
+            canDelete: level >= 2,
+            isAuthenticated: !!user,
+        });
     },
 }));
