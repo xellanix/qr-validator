@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useUserStore } from "@/stores/user.store";
 import { AuthView } from "@/components/auth";
 import { AppHeader } from "@/components/core/header";
@@ -29,6 +29,14 @@ function AuthGuard() {
                 <AuthView />
             </div>
         );
+    }
+
+    return <Outlet />;
+}
+
+export function ConsoleGuard() {
+    if (!useUserStore.getState().hasConsoleAccess()) {
+        return <Navigate to="/" replace />;
     }
 
     return <Outlet />;
