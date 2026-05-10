@@ -1,8 +1,8 @@
 import { hostname } from "os";
 import { Server as Engine } from "@socket.io/bun-engine";
 import { Server } from "socket.io";
+import { isTrulyLocal } from "$/lib/utils";
 import { TunnelManager } from "$/tunnel-manager";
-import { isTrulyLocal } from "$/utils";
 import { auth, setupSocketAuth } from "$/sockets/auth";
 import { history } from "$/sockets/history";
 import { report } from "$/sockets/report";

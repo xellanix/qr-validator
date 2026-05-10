@@ -2,9 +2,9 @@ import { join } from "path";
 import { file, serve } from "bun";
 import open from "open";
 import { AUTH_HEADERS, getToken, getUserPayload, isAuthenticatedUser, trySignIn } from "$/lib/auth";
+import { csvToJson } from "$/lib/utils";
 import { execDir, publicDir } from "$/persist";
 import { FRONTEND_PORT, SERVER_PORT, engine } from "$/socket";
-import { csvToJson } from "$/utils";
 import { getPermissions } from "@/lib/permission";
 import index from "../dist/frontend/index.html";
 

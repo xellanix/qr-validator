@@ -2,9 +2,9 @@ import type { User } from "@/types";
 import { file } from "bun";
 import { parse } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
+import { decrypt, toNonSharedBytes } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { FRONTEND_PORT } from "$/socket";
-import { decrypt, toNonSharedBytes } from "$/utils";
 
 const authorizedUsersPath = publicDir("output", "authorized-users.json");
 let authorizedIds: string[] = [];

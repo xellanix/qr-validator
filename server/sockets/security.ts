@@ -1,6 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { SocketCallback } from "$/types";
-import { decrypt, toNonSharedBytes } from "$/utils";
+import { decrypt, toNonSharedBytes } from "$/lib/utils";
 
 const USERDATA_ENCRYPTION_KEY = toNonSharedBytes(process.env.USERDATA_ENCRYPTION_KEY, 32);
 
