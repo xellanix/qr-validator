@@ -1,14 +1,10 @@
 import type { User } from "@/types";
-import { file } from "bun";
 import { parse } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
-import { decrypt, toNonSharedBytes } from "$/lib/utils";
-import { publicDir } from "$/persist";
+import { addUser, findUserByToken } from "$/db/user";
+import { toNonSharedBytes } from "$/lib/utils";
 import { FRONTEND_PORT } from "$/socket";
 
-const authorizedUsersPath = publicDir("output", "authorized-users.json");
-let authorizedIds: string[] = [];
-const ENCRYPTION_KEY = toNonSharedBytes(process.env.ENCRYPTION_KEY, 32);
 const JWT_SECRET = toNonSharedBytes(process.env.JWT_SECRET, 64);
 
 const isProd = process.env.NODE_ENV === "production";
@@ -24,35 +20,10 @@ export const AUTH_HEADERS = isProd
           "Access-Control-Max-Age": "7200",
       };
 
-async function initIds(reInit?: boolean) {
-    if (!reInit && authorizedIds.length > 0) return;
-
-    const idFile = file(authorizedUsersPath);
-    if (!(await idFile.exists())) return;
-
-    authorizedIds = await idFile.json();
-}
-
-async function verifyId(id: string): Promise<User | null> {
-    try {
-        await initIds();
-        if (authorizedIds.includes(id)) {
-            const decrypted = decrypt(id, ENCRYPTION_KEY);
-            if (decrypted) {
-                const user = JSON.parse(decrypted) as User;
-                return user;
-            }
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-async function getUserJwt(id?: string) {
+async function getUserJwt(id?: Uint8Array) {
     if (!id) return null;
 
-    const user = await verifyId(id);
+    const user = await findUserByToken(id);
     if (user) {
         const jwt = await new SignJWT({ ...user })
             .setProtectedHeader({ alg: "HS256" })
@@ -66,11 +37,12 @@ async function getUserJwt(id?: string) {
 }
 
 export async function trySignIn(req: Bun.BunRequest) {
-    const body = await req.body.json();
-    const user = await getUserJwt(body?.userId);
+    const body = await req.body.bytes();
+    const user = await getUserJwt(body);
     if (!user) {
-        return new Response(`Unauthorized: Invalid User (${body?.userId})`, {
+        return new Response(`Unauthorized: Invalid User Id`, {
             status: 401,
+            headers: AUTH_HEADERS,
         });
     }
 
@@ -79,6 +51,33 @@ export async function trySignIn(req: Bun.BunRequest) {
         headers: {
             ...AUTH_HEADERS,
             "Set-Cookie": `auth_token=${user.jwt}; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`,
+        },
+    });
+}
+
+export async function trySignUp(req: Bun.BunRequest) {
+    const body = await req.body.json();
+    const userName = (body?.name ?? "").trim();
+    if (!userName) {
+        return new Response(`Bad Request: Invalid User Name`, {
+            status: 400,
+            headers: AUTH_HEADERS,
+        });
+    }
+
+    const userId = await addUser({ name: userName, authorizeLevel: 3 });
+    if (!userId) {
+        return new Response(`Internal Server Error`, { status: 500, headers: AUTH_HEADERS });
+    }
+
+    const user = await getUserJwt(userId);
+    const jwt = user?.jwt ?? "";
+
+    return new Response("OK", {
+        status: 200,
+        headers: {
+            ...AUTH_HEADERS,
+            "Set-Cookie": `auth_token=${jwt}; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`,
         },
     });
 }

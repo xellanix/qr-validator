@@ -71,9 +71,17 @@ export async function csvToJson(path: string): Promise<Dataset[]> {
 }
 
 export function toNonSharedBytes(data: string, length: number) {
-    const decoded = Buffer.from(data, "base64");
+    const decoded = base64ToBytes(data);
     if (decoded?.length !== length) {
         throw new Error(`Expected ${length} bytes, but got ${decoded?.length ?? -1}`);
     }
     return decoded;
+}
+
+export function bytesToBase64(data: Uint8Array) {
+    return Buffer.from(data).toString("base64");
+}
+
+export function base64ToBytes(data: string) {
+    return new Uint8Array(Buffer.from(data, "base64"));
 }

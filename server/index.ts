@@ -1,7 +1,14 @@
 import { join } from "path";
 import { file, serve } from "bun";
 import open from "open";
-import { AUTH_HEADERS, getToken, getUserPayload, isAuthenticatedUser, trySignIn } from "$/lib/auth";
+import {
+    AUTH_HEADERS,
+    getToken,
+    getUserPayload,
+    isAuthenticatedUser,
+    trySignIn,
+    trySignUp,
+} from "$/lib/auth";
 import { csvToJson } from "$/lib/utils";
 import { execDir, publicDir } from "$/persist";
 import { FRONTEND_PORT, SERVER_PORT, engine } from "$/socket";
@@ -44,6 +51,9 @@ serve({
                 "Set-Cookie": `auth_token=; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=0`,
             },
         }),
+        "/auth/signup": {
+            POST: (req) => trySignUp(req),
+        },
     },
     async fetch(req, server) {
         const url = new URL(req.url);

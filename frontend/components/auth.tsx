@@ -1,33 +1,17 @@
 import type { ChangeEvent } from "react";
 import { Logout02Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { decodeQR } from "qr/decode.js";
 import { useRef, useState } from "react";
 import { signIn, signOut } from "@/lib/auth";
 import { useCallbackLock } from "@/hooks/use-callback-lock";
+import { CreateAdminAccountDialog } from "@/components/dialogs/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-const fileToImageData = async (file: File) => {
-    // Create an ImageBitmap from the file
-    const imageBitmap = await createImageBitmap(file);
-
-    // Create a canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = imageBitmap.width;
-    canvas.height = imageBitmap.height;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-        throw new Error("Failed to get canvas context");
-    }
-
-    // Draw the ImageBitmap onto the canvas
-    ctx.drawImage(imageBitmap, 0, 0);
-
-    // Get the ImageData from the canvas
-    return ctx.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
+const base64ToArrayBuffer = async (base64: string) => {
+    const response = await fetch(`data:application/octet-stream;base64,${base64}`);
+    return response.arrayBuffer();
 };
 
 export function AuthView() {
@@ -35,21 +19,24 @@ export function AuthView() {
     const [error, setError] = useState("");
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const { invoke: attemptAuth, isLocked } = useCallbackLock(async (authToken: string) => {
-        if (!authToken) return;
-        setError("");
-        await signIn(authToken);
-    });
+    const { invoke: attemptAuth, isLocked } = useCallbackLock(
+        async (authToken: ArrayBuffer | string) => {
+            if (!authToken) return;
+            setError("");
+
+            const buffer =
+                typeof authToken === "string" ? await base64ToArrayBuffer(authToken) : authToken;
+            await signIn(buffer);
+        },
+    );
 
     const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         try {
-            const imageData = await fileToImageData(file);
-            const decodedText = decodeQR(imageData);
-            setToken(decodedText);
-            await attemptAuth(decodedText);
+            const buffer = await file.arrayBuffer();
+            await attemptAuth(buffer);
         } catch (error) {
             console.log("Error decoding QR code: ", error);
             setError("Could not read QR code from the selected file.");
@@ -65,13 +52,13 @@ export function AuthView() {
             <CardHeader className="sticky top-0 bg-inherit pb-6">
                 <CardTitle>Authentication Required</CardTitle>
                 <CardDescription>
-                    Provide your access token by pasting it or uploading a QR code image.
+                    Provide your access key by pasting it or uploading a key file.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
                 <Input
                     type="text"
-                    placeholder="Enter encrypted token"
+                    placeholder="Enter encrypted key"
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && attemptAuth(token)}
@@ -102,7 +89,7 @@ export function AuthView() {
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileChange}
-                            accept="image/*"
+                            accept=".key"
                             className="hidden"
                             disabled={isLocked}
                         />
@@ -113,9 +100,13 @@ export function AuthView() {
                             disabled={isLocked}
                         >
                             <HugeiconsIcon icon={Upload01Icon} className="mr-2 size-4" /> Upload
-                            Auth QR Code
+                            Auth Key File
                         </Button>
                     </div>
+                </div>
+
+                <div className="flex justify-center items-center flex-wrap">
+                    Setting up a new project? <CreateAdminAccountDialog />
                 </div>
 
                 {error && <p className="text-center text-sm font-medium text-red-500">{error}</p>}

@@ -1,7 +1,6 @@
 export interface User {
-    id: number;
     name: string;
-    authorizeLevel: 0 | 1 | 2;
+    authorizeLevel: 0 | 1 | 2 | 3;
 }
 
 export type ScanStatus = "Valid" | "Not Valid";

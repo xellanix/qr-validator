@@ -25,17 +25,12 @@ export const tryInitUserData = async () => {
     useUserStore.getState().setUser(res);
 };
 
-export const signIn = async (userId: string) => {
-    if (!userId.trim()) {
-        toast.error("Please enter a valid access token.");
-        return;
-    }
-
+export const signIn = async (userId: ArrayBuffer) => {
     const url = new URL("/auth/signin", getBackendUrl()).href;
     const res = await fetch(url, {
         method: "POST",
-        body: JSON.stringify({ userId }),
-        headers: { "Content-Type": "application/json" },
+        body: userId,
+        headers: { "Content-Type": "application/octet-stream" },
         // This allows the browser to receive and store the HttpOnly cookie
         credentials: "include",
     });
@@ -51,4 +46,26 @@ export const signOut = async () => {
     const url = new URL("/auth/signout", getBackendUrl()).href;
     await fetch(url, { credentials: "include" });
     window.location.reload();
+};
+
+export const signUp = async (name: string) => {
+    if (!name.trim()) {
+        return false;
+    }
+
+    const url = new URL("/auth/signup", getBackendUrl()).href;
+    const res = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({ name }),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+
+    if (!res.ok) {
+        // User not found
+        toast.error("User not found.");
+    }
+    useUserStore.getState().setIsAuthenticated(res.ok);
+
+    return res.ok;
 };

@@ -28,6 +28,8 @@ const result = await Bun.build({
         "process.env.ENCRYPTION_KEY": JSON.stringify(process.env.ENCRYPTION_KEY),
         "process.env.JWT_SECRET": JSON.stringify(process.env.JWT_SECRET),
         "process.env.USERDATA_ENCRYPTION_KEY": JSON.stringify(process.env.USERDATA_ENCRYPTION_KEY),
+        "process.env.HASH_SECRET": JSON.stringify(process.env.HASH_SECRET),
+        "process.env.AUTH_ENCRYPTION_KEY": JSON.stringify(process.env.AUTH_ENCRYPTION_KEY),
         VERSION: JSON.stringify(version.version),
     },
 });
