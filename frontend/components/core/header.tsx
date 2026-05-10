@@ -7,9 +7,7 @@ export function AppHeader() {
         <div className="mb-8 flex items-center justify-between *:-mx-4 *:px-4">
             <div className="flex flex-col">
                 <div className="flex w-full gap-2">
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                        PreMark
-                    </h1>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">PreMark</h1>
                     <SocketStatus />
                 </div>
                 <p className="text-sm text-gray-500">ORKESS 4.0</p>
@@ -27,9 +25,7 @@ function UserSection() {
         <div className="flex items-center gap-4">
             <div className="text-right">
                 <p className="font-semibold">{user.name}</p>
-                <p className="text-sm text-gray-500">
-                    Level {user.authorizeLevel}
-                </p>
+                <p className="text-sm text-gray-500">Level {user.authorizeLevel}</p>
             </div>
             <LogoutButton />
         </div>
