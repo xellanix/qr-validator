@@ -3,7 +3,7 @@ import type { DataContentType, Dataset, DatasetKey } from "@/types";
 import { toast } from "sonner";
 import { string } from "zod";
 import { create } from "zustand";
-import { createSingletonAsyncLoader } from "@/lib/utils";
+import { createSingletonAsyncLoader, getBackendUrl } from "@/lib/utils";
 
 interface Project {
     inputKey: DatasetKey;
@@ -36,7 +36,8 @@ type ProjectStore = ProjectState & ProjectActions;
 // Singleton
 // Ensures that an expensive async function is only ever executed once
 export const getDataset = createSingletonAsyncLoader(async (path: string, key: string) => {
-    const res = await fetch(`/api/assets/${encodeURIComponent(path)}?to-json`);
+    const url = new URL(`/api/assets/${encodeURIComponent(path)}?to-json`, getBackendUrl()).href;
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) toast.error("Failed to fetch dataset.");
 
     const json = await res.json();

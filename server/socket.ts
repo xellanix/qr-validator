@@ -3,7 +3,7 @@ import { Server as Engine } from "@socket.io/bun-engine";
 import { Server } from "socket.io";
 import { TunnelManager } from "$/tunnel-manager";
 import { isTrulyLocal } from "$/utils";
-import { auth } from "$/sockets/auth";
+import { auth, setupSocketAuth } from "$/sockets/auth";
 import { history } from "$/sockets/history";
 import { report } from "$/sockets/report";
 import { security } from "$/sockets/security";
@@ -18,9 +18,12 @@ const engine = new Engine({
     path: "/api/socket_io/",
     cors: {
         origin: isProd ? false : `http://localhost:${FRONTEND_PORT}`,
+        methods: ["GET", "POST"],
+        credentials: true,
     },
 });
 io.bind(engine);
+setupSocketAuth(io);
 io.on("connection", (socket) => {
     console.log("✅ Client connected:", socket.id);
 
@@ -98,6 +101,7 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         const str = `❌ Client disconnected: ${socket.id}`;
+        socket.data.user = undefined;
         console.log(str);
         console.log("-".repeat(Bun.stringWidth(str)));
     });

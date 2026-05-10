@@ -1,8 +1,10 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { useAppStore } from "@/stores/app.store";
 import { useUserStore } from "@/stores/user.store";
 import { AuthView } from "@/components/auth";
 import { AppHeader } from "@/components/core/header";
 import { Toaster } from "@/components/ui/sonner";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Layout() {
     return (
@@ -12,13 +14,29 @@ export default function Layout() {
                     <div className="flex size-full flex-col overflow-hidden *:px-4 *:first:pt-4 *:last:pb-4 sm:px-8 sm:*:first:pt-8 sm:*:last:pb-8">
                         <AppHeader />
 
-                        <AuthGuard />
+                        <LoadingGuard>
+                            <AuthGuard />
+                        </LoadingGuard>
                     </div>
                 </div>
             </section>
             <Toaster richColors={true} />
         </main>
     );
+}
+
+function LoadingGuard({ children }: { children: React.ReactNode }) {
+    const isLoading = useAppStore((s) => s.isLoading);
+
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <Spinner className="size-12" />
+            </div>
+        );
+    }
+
+    return children;
 }
 
 function AuthGuard() {

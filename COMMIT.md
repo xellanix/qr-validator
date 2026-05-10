@@ -31,6 +31,8 @@
    - `packages`: packages (deps) related
    - `github-actions`: CI/CD workflows
    - `about`: about page
+   - `security`: security
+   - `app`: app related
 
    **Note on Scopes**: 
    - If the change doesn't fit the map or is too generic, leave the scope empty: `type: subject`.

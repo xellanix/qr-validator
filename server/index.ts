@@ -1,9 +1,11 @@
 import { join } from "path";
 import { file, serve } from "bun";
 import open from "open";
+import { AUTH_HEADERS, getToken, getUserPayload, isAuthenticatedUser, trySignIn } from "$/lib/auth";
 import { execDir, publicDir } from "$/persist";
 import { FRONTEND_PORT, SERVER_PORT, engine } from "$/socket";
 import { csvToJson } from "$/utils";
+import { getPermissions } from "@/lib/permission";
 import index from "../dist/frontend/index.html";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -12,7 +14,7 @@ const { fetch, ...socketEngineHandler } = engine.handler();
 declare const VERSION: string;
 
 console.log("┌────────────────────────────────┐");
-console.log("│ Xellanix ControlMaster         │");
+console.log("│ Xellanix PreMark               │");
 {
     const len = 22 - VERSION.length;
     console.log(`│ Version ${VERSION}${len > 0 ? " ".repeat(len) : ""} │`);
@@ -31,17 +33,64 @@ serve({
         "/": prod(index),
         "/console": prod(index),
         "/index.html": prod(index),
+        "/auth/signin": {
+            GET: (req) => isAuthenticatedUser(req.headers.get("cookie")),
+            POST: (req) => trySignIn(req),
+        },
+        "/auth/signout": new Response("OK", {
+            status: 200,
+            headers: {
+                ...AUTH_HEADERS,
+                "Set-Cookie": `auth_token=; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=0`,
+            },
+        }),
     },
     async fetch(req, server) {
         const url = new URL(req.url);
-        const path = url.pathname;
+        const path = decodeURIComponent(url.pathname)
+            .replace(/^(\.\.(\/|\\|$))+/g, "")
+            .replace(/\\/g, "/");
 
         if (path.startsWith(engine.opts.path)) {
             return engine.handleRequest(req, server);
         }
 
-        if (path.startsWith("/api/assets/")) {
-            return servePublicFile(path.replace("/api/assets/", ""), url.searchParams);
+        if (req.method === "OPTIONS") {
+            return new Response(null, { headers: AUTH_HEADERS });
+        }
+
+        if (path.startsWith("/api/assets")) {
+            let reqPath = path.replace("/api/assets", "");
+            if (reqPath.startsWith("/")) reqPath = reqPath.slice(1);
+
+            if (reqPath.startsWith("output")) {
+                return new Response("Forbidden: Invalid Path", { status: 403 });
+            } else if (reqPath.startsWith("input")) {
+                const token = getToken(req.headers.get("cookie"));
+                if (typeof token !== "string") return token;
+                try {
+                    const user = await getUserPayload(token);
+                    if (!getPermissions(user.authorizeLevel).isUseDataset) {
+                        return new Response("Forbidden: Insufficient Permissions", {
+                            status: 403,
+                            headers: AUTH_HEADERS,
+                        });
+                    }
+
+                    const response = await servePublicFile(reqPath, url.searchParams);
+                    Object.entries(AUTH_HEADERS).forEach(([key, value]) => {
+                        response.headers.set(key, value);
+                    });
+                    return response;
+                } catch {
+                    return new Response("Internal Server Error", {
+                        status: 500,
+                        headers: AUTH_HEADERS,
+                    });
+                }
+            }
+
+            return new Response("Bad Request: Invalid Path", { status: 400 });
         }
 
         return prod(serveStaticFile(path));
@@ -71,9 +120,8 @@ async function getBunFile(baseDir: string, targetPath: string) {
     return new Response(requestedFile);
 }
 
-async function servePublicFile(path: string, searchParams: URLSearchParams) {
+async function servePublicFile(reqPath: string, searchParams: URLSearchParams) {
     const baseDir = publicDir();
-    const reqPath = decodeURIComponent(path);
     const targetPath = join(baseDir, reqPath);
 
     console.log("File request...");
@@ -92,8 +140,7 @@ async function servePublicFile(path: string, searchParams: URLSearchParams) {
     return getBunFile(baseDir, targetPath);
 }
 
-async function serveStaticFile(path: string, baseDir: string = execDir()) {
-    const reqPath = decodeURIComponent(path);
+async function serveStaticFile(reqPath: string, baseDir: string = execDir()) {
     const targetPath = join(baseDir, reqPath);
 
     console.log("File request...");

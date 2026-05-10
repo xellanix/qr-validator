@@ -98,3 +98,16 @@ export function compareNullableStrings(
 
     return order === "asc" ? result : -result;
 }
+
+/**
+ * Determines the URL of the backend server based on environment.
+ * @returns The URL of the backend server
+ */
+export function getBackendUrl() {
+    // If we are accessing the Vite dev server, point to the Bun backend port
+    if (import.meta.env.DEV) {
+        return "http://localhost:26051";
+    }
+
+    return window.location.origin;
+}

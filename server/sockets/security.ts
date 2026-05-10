@@ -1,12 +1,14 @@
 import type { Server, Socket } from "socket.io";
 import type { SocketCallback } from "$/types";
-import { decrypt } from "$/utils";
+import { decrypt, toNonSharedBytes } from "$/utils";
 
-const userdataKey = Buffer.from(process.env.USERDATA_ENCRYPTION_KEY!, "utf-8");
+const USERDATA_ENCRYPTION_KEY = toNonSharedBytes(process.env.USERDATA_ENCRYPTION_KEY, 32);
 
 export function security(io: Server, socket: Socket) {
     socket.on("client:security:decrypt", (data: string, callback: SocketCallback<string>) => {
-        const decrypted = decrypt(data, userdataKey);
+        if (!socket.data.user) return;
+
+        const decrypted = decrypt(data, USERDATA_ENCRYPTION_KEY);
         if (!decrypted) {
             return callback({
                 status: "error",

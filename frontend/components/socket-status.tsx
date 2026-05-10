@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useSocketStore } from "@/stores/socket.store";
+import { useUserStore } from "@/stores/user.store";
 
 interface SocketStatusProps {
     showText?: boolean;
@@ -7,13 +8,17 @@ interface SocketStatusProps {
 export function SocketStatus({ showText }: SocketStatusProps) {
     const isConnected = useSocketStore((s) => s.socketId !== null);
 
+    if (useUserStore((s) => !s.isAuthenticated)) {
+        return null;
+    }
+
     return (
         <div className="flex flex-col items-center justify-center">
             <div className="flex h-6 items-center justify-center gap-2">
                 <div
                     className={cn(
                         "relative flex aspect-square h-3 *:inline-flex *:rounded-full",
-                        isConnected ? "*:bg-(--success-foreground)" : "*:bg-(--error-foreground)",
+                        isConnected ? "*:bg-success-foreground" : "*:bg-error-foreground",
                     )}
                 >
                     <div className="absolute h-full w-full animate-ping opacity-75" />

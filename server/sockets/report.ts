@@ -2,6 +2,7 @@ import type { Server, Socket } from "socket.io";
 import type { SocketCallback } from "$/types";
 import type { BlobBuffer, DatasetKey, User } from "@/types";
 import { writeToBuffer } from "@fast-csv/format";
+import { getPermissions } from "@/lib/permission";
 
 export function report(io: Server, socket: Socket) {
     socket.on(
@@ -12,7 +13,7 @@ export function report(io: Server, socket: Socket) {
             callback: SocketCallback<BlobBuffer>,
         ) => {
             const user: User | undefined = socket.data.user;
-            if (!user || user.authorizeLevel < 2) {
+            if (!user || !getPermissions(user.authorizeLevel).canReport) {
                 return callback({
                     status: "error",
                     error: `Unauthorized report attempt by user: ${user?.name}`,

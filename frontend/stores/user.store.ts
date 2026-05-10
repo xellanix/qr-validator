@@ -1,16 +1,16 @@
 import type { User } from "@/types";
+import type { Permissions } from "@/types/permission";
 import { create } from "zustand";
+import { getPermissions, readOnlyPermission } from "@/lib/permission";
 
-interface UserState {
+interface UserState extends Permissions {
     user: User | null;
-    canScan: boolean;
-    canReport: boolean;
-    canDelete: boolean;
     isAuthenticated: boolean;
 }
 
 interface UserActions {
     setUser: (user: User | null) => void;
+    setIsAuthenticated: (isAuthenticated: boolean) => void;
 
     hasConsoleAccess: () => boolean;
 }
@@ -19,21 +19,17 @@ type UserStore = UserState & UserActions;
 
 export const useUserStore = create<UserStore>((set, get) => ({
     user: null,
-    canScan: false,
-    canReport: false,
-    canDelete: false,
     isAuthenticated: false,
+    ...readOnlyPermission,
 
     setUser: (user) => {
         const level = user?.authorizeLevel ?? 0;
         set({
             user,
-            canScan: level >= 1,
-            canReport: level >= 2,
-            canDelete: level >= 2,
-            isAuthenticated: !!user,
+            ...getPermissions(level),
         });
     },
+    setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
 
     hasConsoleAccess: () => {
         if (typeof window === "undefined") return false;

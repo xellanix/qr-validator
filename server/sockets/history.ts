@@ -3,6 +3,7 @@ import type { SocketCallback } from "$/types";
 import type { ScanEntry, ScanStatus, User } from "@/types";
 import { file, write } from "bun";
 import { publicDir } from "$/persist";
+import { getPermissions } from "@/lib/permission";
 
 const historyFilePath = publicDir("output", "history.json");
 
@@ -31,6 +32,8 @@ let scanHistory: ScanEntry[] = [];
 
 export function history(io: Server, socket: Socket) {
     socket.on("client:history:init", async () => {
+        if (!socket.data.user) return;
+
         scanHistory = await readHistoryFromFile();
         socket.emit("server:history:update", scanHistory);
     });
@@ -39,8 +42,7 @@ export function history(io: Server, socket: Socket) {
         "client:history:validation",
         async (qrData: string, status: ScanStatus, callback: SocketCallback<string>) => {
             const user: User | undefined = socket.data.user;
-
-            if (!user || user.authorizeLevel < 1) {
+            if (!user || !getPermissions(user.authorizeLevel).canScan) {
                 return callback({
                     status: "error",
                     error: `Unauthorized validation attempt by user: ${user?.name}`,
@@ -82,7 +84,7 @@ export function history(io: Server, socket: Socket) {
 
     socket.on("client:history:delete", async (idToDelete: string) => {
         const user: User | undefined = socket.data.user;
-        if (!user || user.authorizeLevel < 2) {
+        if (!user || !getPermissions(user.authorizeLevel).canDelete) {
             console.log(`Unauthorized delete attempt by user:`, user?.name);
             return;
         }

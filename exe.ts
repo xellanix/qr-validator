@@ -26,6 +26,7 @@ const result = await Bun.build({
     define: {
         "process.env.NODE_ENV": JSON.stringify("production"),
         "process.env.ENCRYPTION_KEY": JSON.stringify(process.env.ENCRYPTION_KEY),
+        "process.env.JWT_SECRET": JSON.stringify(process.env.JWT_SECRET),
         "process.env.USERDATA_ENCRYPTION_KEY": JSON.stringify(process.env.USERDATA_ENCRYPTION_KEY),
         VERSION: JSON.stringify(version.version),
     },

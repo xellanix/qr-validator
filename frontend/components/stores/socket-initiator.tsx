@@ -1,32 +1,33 @@
 import { useEffect } from "react";
 import { io } from "socket.io-client";
-import { tryAuthenticate } from "@/lib/auth";
+import { tryAuthenticate, tryInitUserData } from "@/lib/auth";
+import { getBackendUrl } from "@/lib/utils";
 import { useAppStore } from "@/stores/app.store";
 import { useSocketStore } from "@/stores/socket.store";
+import { useUserStore } from "@/stores/user.store";
 
 export function SocketInitiator() {
+    const isAuthenticated = useUserStore((s) => s.isAuthenticated);
+
     useEffect(() => {
         if (typeof window === "undefined") return;
 
         useAppStore.getState().setIsLoading(true);
 
+        if (!isAuthenticated) {
+            tryAuthenticate()
+                .catch(console.error)
+                .finally(() => useAppStore.getState().setIsLoading(false));
+            return;
+        }
+
         const { setSocket, setSocketId } = useSocketStore.getState();
 
-        const origin = window.location.origin;
-        let socketUrl = origin;
-
-        // If we are accessing the Vite dev server locally or it's running in DEV mode,
-        // point to the Bun backend port
-        if (
-            origin.includes("localhost:26052") ||
-            origin.includes("127.0.0.1:26052") ||
-            import.meta.env.DEV
-        ) {
-            socketUrl = "http://localhost:26051";
-        }
-        const newSocket = io(socketUrl, {
+        const newSocket = io(getBackendUrl(), {
             path: "/api/socket_io",
             transports: ["websocket"],
+            withCredentials: true,
+            autoConnect: true,
         });
         setSocket(newSocket);
 
@@ -34,7 +35,8 @@ export function SocketInitiator() {
             setSocketId(newSocket.id!);
             console.log("✅ Connected to server");
 
-            await tryAuthenticate();
+            await tryInitUserData();
+            useAppStore.getState().setIsLoading(false);
         });
 
         newSocket.on("server:socket:device:info", (data) => {
@@ -57,7 +59,7 @@ export function SocketInitiator() {
         return () => {
             newSocket.disconnect();
         };
-    }, []);
+    }, [isAuthenticated]);
 
     return null;
 }

@@ -1,11 +1,9 @@
 import type { ChangeEvent } from "react";
-import type { User } from "@/types";
 import { Logout02Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { decodeQR } from "qr/decode.js";
 import { useRef, useState } from "react";
 import { signIn, signOut } from "@/lib/auth";
-import { useSocketStore } from "@/stores/socket.store";
 import { useCallbackLock } from "@/hooks/use-callback-lock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,11 +38,7 @@ export function AuthView() {
     const { invoke: attemptAuth, isLocked } = useCallbackLock(async (authToken: string) => {
         if (!authToken) return;
         setError("");
-        const emitAck = useSocketStore.getState().emitAck;
-        const res = await emitAck<User>("client:auth:authenticate", authToken);
-
-        if (!res) return;
-        signIn(res, authToken);
+        await signIn(authToken);
     });
 
     const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -131,8 +125,18 @@ export function AuthView() {
 }
 
 export function LogoutButton() {
+    const { invoke: attemptSignOut, isLocked } = useCallbackLock(async () => {
+        await signOut();
+    });
+
     return (
-        <Button variant="outline" size="icon" onClick={signOut} aria-label="Sign out">
+        <Button
+            variant="outline"
+            size="icon"
+            onClick={attemptSignOut}
+            aria-label="Sign out"
+            disabled={isLocked}
+        >
             <HugeiconsIcon icon={Logout02Icon} className="size-4" />
         </Button>
     );

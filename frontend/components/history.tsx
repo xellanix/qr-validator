@@ -36,7 +36,7 @@ export function Synchronizer() {
     }, [socket]);
 
     useEffect(() => {
-        void useProjectStore.getState().initDataset();
+        if (useUserStore.getState().isUseDataset) void useProjectStore.getState().initDataset();
     }, []);
 
     return null;

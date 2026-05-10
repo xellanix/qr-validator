@@ -33,7 +33,7 @@ export function isTrulyLocal(req: IncomingMessage, ip?: string): boolean {
     return !hasProxyHeader;
 }
 
-export function decrypt(token: string, _key: Buffer): string | null {
+export function decrypt(token: string, _key: Uint8Array<ArrayBuffer>): string | null {
     try {
         const combined = Buffer.from(token, "base64");
 
@@ -68,4 +68,12 @@ export async function csvToJson(path: string): Promise<Dataset[]> {
 
         input.pipe(parser);
     });
+}
+
+export function toNonSharedBytes(data: string, length: number) {
+    const encoded = new TextEncoder().encode(data);
+    if (encoded?.length !== length) {
+        throw new Error(`Expected ${length} bytes, but got ${encoded?.length ?? -1}`);
+    }
+    return encoded;
 }
