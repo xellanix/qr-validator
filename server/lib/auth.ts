@@ -37,7 +37,7 @@ async function getUserJwt(id?: Uint8Array) {
 }
 
 export async function trySignIn(req: Bun.BunRequest) {
-    const body = await req.body.bytes();
+    const body = await req.body?.bytes();
     const user = await getUserJwt(body);
     if (!user) {
         return new Response(`Unauthorized: Invalid User Id`, {
@@ -56,7 +56,7 @@ export async function trySignIn(req: Bun.BunRequest) {
 }
 
 export async function trySignUp(req: Bun.BunRequest) {
-    const body = await req.body.json();
+    const body = await req.body?.json();
     const userName = (body?.name ?? "").trim();
     if (!userName) {
         return new Response(`Bad Request: Invalid User Name`, {
@@ -87,15 +87,18 @@ export async function getUserPayload(token: string) {
     return payload as unknown as User;
 }
 
-export function getToken(cookieHeader: string) {
-    const cookies = parse(cookieHeader || "");
+export function getToken(cookieHeader?: string | null) {
+    const header = cookieHeader?.trim();
+    if (!header) return new Response("Unauthorized", { status: 401, headers: AUTH_HEADERS });
+
+    const cookies = parse(header);
     const token = cookies.auth_token;
     if (!token) return new Response("Unauthorized", { status: 401, headers: AUTH_HEADERS });
 
     return token;
 }
 
-export async function isAuthenticatedUser(cookieHeader: string) {
+export async function isAuthenticatedUser(cookieHeader?: string | null) {
     const token = getToken(cookieHeader);
     if (typeof token !== "string") return token;
 
