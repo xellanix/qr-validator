@@ -1,11 +1,13 @@
-import type { webcrypto } from "node:crypto";
 import { createSearchHash, db, decryptData, encryptData } from "$/db";
 import { base64ToBytes, bytesToBase64, toNonSharedBytes } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { type User } from "@/types";
 
 const AUTH_ENCRYPTION_KEY = toNonSharedBytes(process.env.AUTH_ENCRYPTION_KEY, 32, false);
-let key: webcrypto.CryptoKey = null;
+const key = await crypto.subtle.importKey("raw", AUTH_ENCRYPTION_KEY, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+]);
 
 // Setup Table with an Index on the hash
 db.run(
@@ -23,16 +25,6 @@ const FIND_USER_BY_TOKEN_QUERY = db.query<{ payload: Uint8Array }, [Uint8Array]>
 );
 const REMOVE_USER_BY_TOKEN_QUERY = db.prepare("DELETE FROM users WHERE user_hash = ?");
 
-async function initAuthKey() {
-    if (!key) {
-        key = await crypto.subtle.importKey("raw", AUTH_ENCRYPTION_KEY, "AES-GCM", false, [
-            "encrypt",
-            "decrypt",
-        ]);
-    }
-    return key;
-}
-
 async function writeTokenFile(name: string, tokenBytes: Uint8Array) {
     const now = new Date();
     const year = now.getFullYear().toString().padStart(4, "0");
@@ -46,7 +38,7 @@ async function writeTokenFile(name: string, tokenBytes: Uint8Array) {
 
 export async function addUser(user: User) {
     try {
-        const tokenBytes = await encryptData(JSON.stringify(user), initAuthKey);
+        const tokenBytes = await encryptData(JSON.stringify(user), key);
         const token = bytesToBase64(tokenBytes);
 
         await writeTokenFile(user.name, tokenBytes);
@@ -70,7 +62,7 @@ export async function findUserByToken(rawToken: string | Uint8Array) {
     if (row) {
         const res = await decryptData<{ token: string }>(row.payload);
         if (res?.token) {
-            const user = await decryptData<User>(base64ToBytes(res.token), initAuthKey);
+            const user = await decryptData<User>(base64ToBytes(res.token), key);
             if (user) {
                 return user;
             }

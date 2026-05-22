@@ -1,4 +1,3 @@
-import type { webcrypto } from "node:crypto";
 import { Database } from "bun:sqlite";
 import { base64ToBytes, toNonSharedBytes } from "$/lib/utils";
 import { publicDir } from "$/persist";
@@ -9,7 +8,10 @@ export const db = new Database(dbPath);
 const SECRET_KEY = toNonSharedBytes(process.env.HASH_SECRET, 64, false);
 const ENCRYPTION_KEY = toNonSharedBytes(process.env.ENCRYPTION_KEY, 32, false);
 
-let key: webcrypto.CryptoKey = null;
+const key = await crypto.subtle.importKey("raw", ENCRYPTION_KEY, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+]);
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -21,19 +23,7 @@ export function createSearchHash(input: string | Uint8Array) {
     return hasher.digest();
 }
 
-async function initKey() {
-    if (!key) {
-        key = await crypto.subtle.importKey("raw", ENCRYPTION_KEY, "AES-GCM", false, [
-            "encrypt",
-            "decrypt",
-        ]);
-    }
-    return key;
-}
-
-export async function encryptData(plainText: string, keyIniter = initKey) {
-    const _key = await keyIniter();
-
+export async function encryptData(plainText: string, _key = key) {
     const iv = crypto.getRandomValues(new Uint8Array(12)); // Stick with 12 bytes for GCM!
     const encoded = encoder.encode(plainText);
 
@@ -47,9 +37,7 @@ export async function encryptData(plainText: string, keyIniter = initKey) {
     return combined;
 }
 
-export async function decryptData<T>(combined: Uint8Array, keyIniter = initKey): Promise<T | null> {
-    const _key = await keyIniter();
-
+export async function decryptData<T>(combined: Uint8Array, _key = key): Promise<T | null> {
     try {
         // Extract the 12-byte IV from the front
         const iv = combined.slice(0, 12);
