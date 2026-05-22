@@ -1,7 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { SocketCallback } from "$/types";
 import type { ScanEntry, ScanStatus, User } from "@/types";
-import { file } from "bun";
 import { atomicWrite } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { getPermissions } from "@/lib/permission";
@@ -10,7 +9,7 @@ const historyFilePath = publicDir("output", "history.json");
 
 async function readHistoryFromFile() {
     try {
-        const historyFile = file(historyFilePath);
+        const historyFile = Bun.file(historyFilePath);
         if (await historyFile.exists()) {
             const json = await historyFile.json();
             return json as ScanEntry[];
