@@ -76,9 +76,7 @@ serve({
             let reqPath = path.replace("/api/assets", "");
             if (reqPath.startsWith("/")) reqPath = reqPath.slice(1);
 
-            if (reqPath.startsWith("output")) {
-                return new Response("Forbidden: Invalid Path", { status: 403 });
-            } else if (reqPath.startsWith("input")) {
+            if (reqPath.startsWith("input")) {
                 const token = getToken(req.headers.get("cookie"));
                 if (typeof token !== "string") return token;
                 try {
@@ -102,11 +100,9 @@ serve({
                     });
                 }
             }
-
-            return new Response("Bad Request: Invalid Path", { status: 400 });
         }
 
-        return prod(serveStaticFile(path));
+        return new Response("Not Found: Invalid Path", { status: 404 });
     },
 });
 
@@ -149,16 +145,6 @@ async function servePublicFile(reqPath: string, searchParams: URLSearchParams) {
             return Response.json(json);
         }
     }
-
-    return getBunFile(baseDir, targetPath);
-}
-
-async function serveStaticFile(reqPath: string, baseDir: string = execDir()) {
-    const targetPath = join(baseDir, reqPath);
-
-    console.log("File request...");
-    console.log("> Request path:", reqPath);
-    console.log("> Resolved path:", targetPath);
 
     return getBunFile(baseDir, targetPath);
 }
