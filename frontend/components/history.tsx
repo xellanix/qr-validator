@@ -98,7 +98,7 @@ export function HistoryView() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={canDelete ? 5 : 4} className="h-24 text-center">
+                                <TableCell colSpan={canDelete ? 5 : 4} className="text-center">
                                     No results found.
                                 </TableCell>
                             </TableRow>
