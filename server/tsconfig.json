@@ -6,10 +6,9 @@
     "target": "es2023",
     "moduleResolution": "bundler",
     "types": ["bun"],
-    "baseUrl": "..",
     "paths": {
-      "@/*": ["frontend/*"],
-      "$/*": ["server/*"]
+      "@/*": ["../frontend/*"],
+      "$/*": ["./*"]
     },
     "plugins": [],
     "lib": ["ES2023"]
