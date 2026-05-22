@@ -1,7 +1,9 @@
+import "$/app-header";
 import "$/migration";
 import { join } from "path";
 import { file, serve } from "bun";
 import open from "open";
+import { FRONTEND_PORT, IS_PROD, SERVER_PORT } from "$/const";
 import {
     AUTH_HEADERS,
     getToken,
@@ -12,22 +14,11 @@ import {
 } from "$/lib/auth";
 import { csvToJson } from "$/lib/utils";
 import { execDir, publicDir } from "$/persist";
-import { FRONTEND_PORT, SERVER_PORT, engine } from "$/socket";
+import { engine } from "$/socket";
 import { getPermissions } from "@/lib/permission";
 import index from "../dist/frontend/index.html";
 
-const isProd = process.env.NODE_ENV === "production";
 const { fetch, ...socketEngineHandler } = engine.handler();
-
-declare const VERSION: string;
-
-console.log("┌────────────────────────────────┐");
-console.log("│ Xellanix PreMark               │");
-{
-    const len = 22 - VERSION.length;
-    console.log(`│ Version ${VERSION}${len > 0 ? " ".repeat(len) : ""} │`);
-}
-console.log("├────────────────────────────────┤");
 
 serve({
     ...socketEngineHandler,
@@ -49,7 +40,7 @@ serve({
             status: 200,
             headers: {
                 ...AUTH_HEADERS,
-                "Set-Cookie": `auth_token=; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=0`,
+                "Set-Cookie": `auth_token=; HttpOnly; Secure; Path=/; SameSite=${IS_PROD ? "Strict" : "Lax"}; Max-Age=0`,
             },
         }),
         "/auth/signup": {
@@ -105,7 +96,7 @@ serve({
 });
 
 function prod<T>(val: T) {
-    if (!isProd) {
+    if (!IS_PROD) {
         return new Response(
             "Bun Backend: Running in DEV mode. Please use the Vite dev server to view the frontend.",
         );
@@ -147,14 +138,10 @@ async function servePublicFile(reqPath: string, searchParams: URLSearchParams) {
     return getBunFile(baseDir, targetPath);
 }
 
-console.log(`│ Server: http://localhost:${SERVER_PORT} │`);
-console.log(`│ Mode  : ${isProd ? "production " : "development"}            │`);
-console.log("└────────────────────────────────┘");
-
 console.log("> Execution directory:", execDir());
 console.log("> Public directory   :", publicDir());
 
-if (isProd && process.env.ALREADY_OPENED !== "true") {
-    void open(`http://localhost:${isProd ? SERVER_PORT : FRONTEND_PORT}/console`);
+if (IS_PROD && process.env.ALREADY_OPENED !== "true") {
+    void open(`http://localhost:${IS_PROD ? SERVER_PORT : FRONTEND_PORT}/console`);
     process.env.ALREADY_OPENED = "true";
 }

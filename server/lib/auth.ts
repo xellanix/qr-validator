@@ -1,9 +1,9 @@
 import type { User } from "@/types";
 import { parse } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
+import { FRONTEND_PORT } from "$/const";
 import { addUser, findUserByToken } from "$/db/user";
 import { toNonSharedBytes } from "$/lib/utils";
-import { FRONTEND_PORT } from "$/socket";
 
 const JWT_SECRET = toNonSharedBytes(process.env.JWT_SECRET, 64, false);
 

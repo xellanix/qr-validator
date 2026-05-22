@@ -1,6 +1,7 @@
 import { hostname } from "os";
 import { Server as Engine } from "@socket.io/bun-engine";
 import { Server } from "socket.io";
+import { FRONTEND_PORT, IS_PROD, SERVER_PORT } from "$/const";
 import { isTrulyLocal } from "$/lib/utils";
 import { TunnelManager } from "$/tunnel-manager";
 import { auth, setupSocketAuth } from "$/sockets/auth";
@@ -8,16 +9,12 @@ import { history } from "$/sockets/history";
 import { report } from "$/sockets/report";
 import { security } from "$/sockets/security";
 
-const SERVER_PORT = 26051;
-const FRONTEND_PORT = 26052;
-const isProd = process.env.NODE_ENV === "production";
-
 const tunnelMgr = TunnelManager.getInstance();
 const io = new Server({ transports: ["websocket"] });
 const engine = new Engine({
     path: "/api/socket_io/",
     cors: {
-        origin: isProd ? false : `http://localhost:${FRONTEND_PORT}`,
+        origin: IS_PROD ? false : `http://localhost:${FRONTEND_PORT}`,
         methods: ["GET", "POST"],
         credentials: true,
     },
@@ -107,4 +104,4 @@ io.on("connection", (socket) => {
     });
 });
 
-export { engine, SERVER_PORT, FRONTEND_PORT };
+export { engine };
