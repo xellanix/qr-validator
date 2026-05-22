@@ -3,13 +3,13 @@ import { dirname, join } from "path";
 let EXEC_DIR = "";
 let PUBLIC_BASE = "";
 
-export function execDir() {
+export function execDir(...segments: string[]) {
     if (!EXEC_DIR) {
         const isProd = process.env.NODE_ENV === "production";
         const base = isProd ? dirname(process.execPath) : process.cwd();
         EXEC_DIR = base;
     }
-    return EXEC_DIR;
+    return join(EXEC_DIR, ...segments);
 }
 
 export function publicDir(...segments: string[]) {

@@ -1,6 +1,8 @@
 import type { IncomingMessage } from "node:http";
+import type { Archive, BlobPart } from "bun";
 import { createDecipheriv } from "crypto";
 import fs from "fs";
+import { rename } from "node:fs/promises";
 import { parse } from "@fast-csv/parse";
 import { type Dataset } from "@/types";
 
@@ -85,4 +87,17 @@ export function bytesToBase64(data: Uint8Array) {
 
 export function base64ToBytes(data: string) {
     return new Uint8Array(Buffer.from(data, "base64"));
+}
+
+export async function atomicWrite(
+    destination: string,
+    input: Blob | NodeJS.TypedArray | ArrayBufferLike | string | BlobPart[] | Archive,
+    options?: { mode?: number; createPath?: boolean },
+): Promise<number> {
+    const tempPath = `${destination}.tmp`;
+    const result = await Bun.write(tempPath, input, options);
+    // Atomically replace the old file with the new one
+    // Tt either succeeds entirely or fails entirely
+    await rename(tempPath, destination);
+    return result;
 }

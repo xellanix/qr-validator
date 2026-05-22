@@ -1,3 +1,4 @@
+import "$/migration";
 import { join } from "path";
 import { file, serve } from "bun";
 import open from "open";
@@ -10,7 +11,6 @@ import {
     trySignUp,
 } from "$/lib/auth";
 import { csvToJson } from "$/lib/utils";
-import { startMigration } from "$/migration";
 import { execDir, publicDir } from "$/persist";
 import { FRONTEND_PORT, SERVER_PORT, engine } from "$/socket";
 import { getPermissions } from "@/lib/permission";
@@ -28,8 +28,6 @@ console.log("│ Xellanix PreMark               │");
     console.log(`│ Version ${VERSION}${len > 0 ? " ".repeat(len) : ""} │`);
 }
 console.log("├────────────────────────────────┤");
-
-await startMigration();
 
 serve({
     ...socketEngineHandler,
