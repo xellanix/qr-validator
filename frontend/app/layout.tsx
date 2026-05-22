@@ -41,7 +41,7 @@ function LoadingGuard({ children }: { children: React.ReactNode }) {
 
 function AuthGuard() {
     // If not authenticated after loading, show the login screen
-    if (useUserStore((s) => !s.isAuthenticated)) {
+    if (useUserStore((s) => s.user === null)) {
         return (
             <div className="flex flex-col size-full overflow-hidden">
                 <AuthView />
@@ -52,10 +52,18 @@ function AuthGuard() {
     return <Outlet />;
 }
 
-export function ConsoleGuard() {
+function ConsoleGuardImpl() {
     if (!useUserStore.getState().hasConsoleAccess()) {
         return <Navigate to="/" replace />;
     }
 
     return <Outlet />;
+}
+
+export function ConsoleGuard() {
+    return (
+        <LoadingGuard>
+            <ConsoleGuardImpl />
+        </LoadingGuard>
+    );
 }
