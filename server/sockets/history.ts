@@ -1,7 +1,8 @@
 import type { Server, Socket } from "socket.io";
 import type { SocketCallback } from "$/types";
 import type { ScanEntry, ScanStatus, User } from "@/types";
-import { file, write } from "bun";
+import { file } from "bun";
+import { atomicWrite } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { getPermissions } from "@/lib/permission";
 
@@ -22,25 +23,48 @@ async function readHistoryFromFile() {
 
 async function writeHistoryToFile(history: ScanEntry[]) {
     try {
-        await write(historyFilePath, JSON.stringify(history, null, 2));
+        await atomicWrite(historyFilePath, JSON.stringify(history, null, 2));
     } catch (error) {
         console.error("Error writing to history file:", error);
     }
 }
 
-let scanHistory: ScanEntry[] = [];
+let scanHistory: ScanEntry[] = await readHistoryFromFile();
+let isWriting = false;
+let needsWriteAgain = false;
+
+async function syncHistoryToDisk() {
+    if (isWriting) {
+        needsWriteAgain = true;
+        return;
+    }
+
+    isWriting = true;
+
+    try {
+        await writeHistoryToFile(scanHistory);
+    } catch (err) {
+        console.error("Disk write failed: ", err);
+    }
+
+    isWriting = false;
+
+    // If mutations happened while writing, run it one more time with the latest data
+    if (needsWriteAgain) {
+        needsWriteAgain = false;
+        await syncHistoryToDisk();
+    }
+}
 
 export function history(io: Server, socket: Socket) {
-    socket.on("client:history:init", async () => {
+    socket.on("client:history:init", () => {
         if (!socket.data.user) return;
-
-        scanHistory = await readHistoryFromFile();
         socket.emit("server:history:update", scanHistory);
     });
 
     socket.on(
         "client:history:validation",
-        async (qrData: string, status: ScanStatus, callback: SocketCallback<string>) => {
+        (qrData: string, status: ScanStatus, callback: SocketCallback<string>) => {
             const user: User | undefined = socket.data.user;
             if (!user || !getPermissions(user.authorizeLevel).canScan) {
                 return callback({
@@ -73,7 +97,7 @@ export function history(io: Server, socket: Socket) {
                 validatedAt: new Date().toISOString(),
             };
             scanHistory.unshift(newScan);
-            await writeHistoryToFile(scanHistory);
+            void syncHistoryToDisk();
             callback({
                 status: "success",
                 data: `Validation for ${qrData} has been submitted`,
@@ -82,7 +106,7 @@ export function history(io: Server, socket: Socket) {
         },
     );
 
-    socket.on("client:history:delete", async (idToDelete: string) => {
+    socket.on("client:history:delete", (idToDelete: string) => {
         const user: User | undefined = socket.data.user;
         if (!user || !getPermissions(user.authorizeLevel).canDelete) {
             console.log(`Unauthorized delete attempt by user:`, user?.name);
@@ -92,7 +116,7 @@ export function history(io: Server, socket: Socket) {
         const initialLength = scanHistory.length;
         scanHistory = scanHistory.filter((entry) => entry.id !== idToDelete);
         if (scanHistory.length < initialLength) {
-            await writeHistoryToFile(scanHistory);
+            void syncHistoryToDisk();
             io.emit("server:history:update", scanHistory);
         }
     });
