@@ -297,7 +297,10 @@ export function ReportView() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">
+                                        <TableCell
+                                            colSpan={4 + typeKeys.length}
+                                            className="text-center"
+                                        >
                                             No results found.
                                         </TableCell>
                                     </TableRow>
