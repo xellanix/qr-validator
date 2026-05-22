@@ -138,8 +138,10 @@ async function servePublicFile(reqPath: string, searchParams: URLSearchParams) {
     return getBunFile(baseDir, targetPath);
 }
 
+console.log("📂 Directories");
 console.log("> Execution directory:", execDir());
 console.log("> Public directory   :", publicDir());
+console.log("");
 
 if (IS_PROD && process.env.ALREADY_OPENED !== "true") {
     void open(`http://localhost:${IS_PROD ? SERVER_PORT : FRONTEND_PORT}/console`);

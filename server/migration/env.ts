@@ -22,6 +22,7 @@ export async function migrateEnv() {
     }
 
     if (linesToAdd.length === 0) return;
+    console.log("> Generating missing environment variables...");
 
     const envPath = execDir(".env");
     const file = Bun.file(envPath);
