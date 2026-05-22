@@ -5,7 +5,7 @@ import { addUser, findUserByToken } from "$/db/user";
 import { toNonSharedBytes } from "$/lib/utils";
 import { FRONTEND_PORT } from "$/socket";
 
-const JWT_SECRET = toNonSharedBytes(process.env.JWT_SECRET, 64);
+const JWT_SECRET = toNonSharedBytes(process.env.JWT_SECRET, 64, false);
 
 const isProd = process.env.NODE_ENV === "production";
 const ALLOWED_ORIGIN = isProd ? "" : `http://localhost:${FRONTEND_PORT}`;

@@ -72,11 +72,23 @@ export async function csvToJson(path: string): Promise<Dataset[]> {
     });
 }
 
-export function toNonSharedBytes(data: string | null | undefined, length: number) {
-    if (!data) throw new Error("Missing data.");
+export function toNonSharedBytes(data: string | null | undefined, length: number, isThrow = true) {
+    if (!data) {
+        const errorMsg = "Error: Missing data. Force exit with code (1).";
+        if (isThrow) throw new Error(errorMsg);
+        else {
+            console.error(errorMsg);
+            process.exit(1);
+        }
+    }
     const decoded = base64ToBytes(data);
     if (decoded?.length !== length) {
-        throw new Error(`Expected ${length} bytes, but got ${decoded?.length ?? -1}`);
+        const errorMsg = `Error: Expected ${length} bytes, but got ${decoded?.length ?? -1}. Force exit with code (1).`;
+        if (isThrow) throw new Error(errorMsg);
+        else {
+            console.error(errorMsg);
+            process.exit(1);
+        }
     }
     return decoded;
 }

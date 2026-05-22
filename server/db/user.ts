@@ -4,7 +4,7 @@ import { base64ToBytes, bytesToBase64, toNonSharedBytes } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { type User } from "@/types";
 
-const AUTH_ENCRYPTION_KEY = toNonSharedBytes(process.env.AUTH_ENCRYPTION_KEY, 32);
+const AUTH_ENCRYPTION_KEY = toNonSharedBytes(process.env.AUTH_ENCRYPTION_KEY, 32, false);
 let key: webcrypto.CryptoKey = null;
 
 // Setup Table with an Index on the hash
