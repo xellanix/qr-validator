@@ -18,6 +18,8 @@ interface SocketActions {
 
     emit: (event: string, ...args: unknown[]) => void;
     emitAck: <T>(event: string, ...args: unknown[]) => Promise<T | undefined>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    on: <C extends (...args: any[]) => void>(event: string, callback: C) => [() => void, C];
 }
 
 type SocketStore = SocketState & SocketActions;
@@ -57,5 +59,9 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
 
             console.error(err);
         }
+    },
+    on: (event, callback) => {
+        get().socket?.on(event, callback);
+        return [() => get().socket?.off(event, callback), callback];
     },
 }));
