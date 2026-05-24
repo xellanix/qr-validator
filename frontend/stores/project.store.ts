@@ -6,6 +6,9 @@ import { create } from "zustand";
 import { createSingletonAsyncLoader, getBackendUrl } from "@/lib/utils";
 
 interface Project {
+    id: string;
+    name: string;
+
     inputKey: DatasetKey;
     datasetKey: DatasetKey;
     datasetPath: string;
@@ -17,14 +20,14 @@ interface Project {
 }
 
 interface ProjectState {
-    projects: Project[];
-    activeIndex: number;
+    projects: Record<string, Project>;
+    activeId: string | null;
 }
 
 interface ProjectActions {
-    getProject: (index?: number) => Project | null;
+    getProject: (id?: string | null) => Project | null;
 
-    initDataset: (index?: number) => Promise<void>;
+    initDataset: (id?: string | null) => Promise<void>;
 
     activeProject: () => Project | null;
     activeTypeKeys: () => DatasetKey[];
@@ -50,8 +53,11 @@ export const getDataset = createSingletonAsyncLoader(async (path: string, key: s
 });
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
-    projects: [
-        {
+    projects: {
+        "fa56a6eb-b343-41d7-8535-769c88fdafb0": {
+            id: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
+            name: "ORKESS 4.0",
+
             inputKey: "NIM",
             datasetKey: "NIM",
             datasetPath: "input/orkess4/db.csv",
@@ -65,29 +71,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             },
             schema: string().min(8).max(8),
         },
-    ],
-    activeIndex: 0,
+    },
+    activeId: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
 
-    getProject: (index) => {
-        const { projects, activeIndex } = get();
-        const _index = index ?? activeIndex;
-
-        if (_index < 0 || _index >= projects.length) return null;
-        return projects[_index];
+    getProject: (id) => {
+        const { projects, activeId } = get();
+        const _id = id ?? activeId;
+        return (_id && projects[_id]) || null;
     },
 
-    initDataset: async (index) => {
-        const { activeIndex, getProject } = get();
-        const _index = index ?? activeIndex;
-        const project = getProject(_index);
-        if (!project) return;
-        const { datasetPath, datasetKey } = project;
+    initDataset: async (id) => {
+        const { activeId, getProject } = get();
+        const _id = id ?? activeId;
+        const _project = getProject(_id);
+        if (!_project) {
+            set({ activeId: null });
+            return;
+        }
+        const { datasetPath, datasetKey } = _project;
 
         const dataset = await getDataset(datasetPath, datasetKey);
 
         set((s) => ({
-            activeIndex: _index,
-            projects: s.projects.map((p, i) => (i === _index ? { ...p, dataset } : p)),
+            activeId: id,
+            projects: {
+                ...s.projects,
+                [_id!]: { ..._project, dataset },
+            },
         }));
     },
 

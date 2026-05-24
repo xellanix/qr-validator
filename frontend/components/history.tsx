@@ -45,7 +45,9 @@ export function Synchronizer() {
 export function HistoryView() {
     const canDelete = useUserStore((s) => s.canDelete);
 
-    const inputDataKey = useProjectStore((s) => s.projects[s.activeIndex].inputKey);
+    const inputDataKey = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.inputKey,
+    );
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;

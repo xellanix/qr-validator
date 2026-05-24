@@ -49,9 +49,15 @@ const finalPresent = (initial: string | undefined, status: string | undefined) =
 export function ReportView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const dataset = useProjectStore((s) => s.projects[s.activeIndex].dataset);
-    const datasetKey = useProjectStore((s) => s.projects[s.activeIndex].datasetKey);
-    const typeKeys = useProjectStore((s) => s.projects[s.activeIndex].typeKeys);
+    const dataset = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.dataset,
+    );
+    const datasetKey = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKey,
+    );
+    const typeKeys = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.typeKeys,
+    );
     const itemsPerPage = 10;
 
     const history = useHistoryStore((s) => s.entries);
@@ -282,7 +288,7 @@ export function ReportView() {
                             <TableHeader className="sticky top-0 bg-muted">
                                 <TableRow>
                                     <TableHead className="text-center">Present</TableHead>
-                                    {typeKeys.map((key) => (
+                                    {typeKeys?.map((key) => (
                                         <TableHead key={key}>{key}</TableHead>
                                     ))}
                                     <TableHead>Validator</TableHead>
@@ -298,7 +304,7 @@ export function ReportView() {
                                 ) : (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={4 + typeKeys.length}
+                                            colSpan={4 + (typeKeys?.length ?? 0)}
                                             className="text-center"
                                         >
                                             No results found.
