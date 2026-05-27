@@ -64,9 +64,9 @@ function getValidationFields(keyValue: DatasetValue) {
     if (!detailed) return;
 
     const built = Object.entries(detailed).map(([key, value]) => {
-        const contentType = _active.contentType;
-        if (key in contentType) {
-            return fieldBuilder[contentType[key]](value);
+        const columns = _active.columns;
+        if (key in columns) {
+            return fieldBuilder[columns[key]](value);
         }
     });
 

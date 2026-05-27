@@ -46,7 +46,7 @@ export function HistoryView() {
     const canDelete = useUserStore((s) => s.canDelete);
 
     const inputDataKey = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.inputKey,
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKeyLabel,
     );
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);

@@ -1,23 +1,10 @@
 import type { ZodString } from "zod";
-import type { DataContentType, Dataset, DatasetKey } from "@/types";
+import type { Dataset, DatasetKey } from "@/types";
+import type { Project } from "@/types/project";
 import { toast } from "sonner";
 import { string } from "zod";
 import { create } from "zustand";
 import { createSingletonAsyncLoader, getBackendUrl } from "@/lib/utils";
-
-interface Project {
-    id: string;
-    name: string;
-
-    inputKey: DatasetKey;
-    datasetKey: DatasetKey;
-    datasetPath: string;
-
-    dataset: Map<string, Dataset> | null;
-    contentType: DataContentType;
-    typeKeys: DatasetKey[];
-    schema: ZodString;
-}
 
 interface ProjectState {
     projects: Record<string, Project>;
@@ -30,7 +17,7 @@ interface ProjectActions {
     initDataset: (id?: string | null) => Promise<void>;
 
     activeProject: () => Project | null;
-    activeTypeKeys: () => DatasetKey[];
+    activeColumnKeys: () => DatasetKey[];
     activeSchema: () => ZodString;
 }
 
@@ -44,7 +31,7 @@ export const getDataset = createSingletonAsyncLoader(async (path: string, key: s
     if (!res.ok) toast.error("Failed to fetch dataset.");
 
     const json = await res.json();
-    const map = new Map<string, Record<string, string>>();
+    const map = new Map<string, Dataset>();
     for (const row of json) {
         map.set(row[key], row);
     }
@@ -58,17 +45,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             id: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
             name: "ORKESS 4.0",
 
-            inputKey: "NIM",
             datasetKey: "NIM",
+            datasetKeyLabel: "NIM",
             datasetPath: "input/orkess4/db.csv",
             dataset: null,
-            typeKeys: ["NIM", "Nama", "Prodi", "Email"],
-            contentType: {
+            columns: {
                 NIM: "text",
                 Nama: "text",
                 Prodi: "text",
                 Email: "text",
             },
+            columnKeys: ["NIM", "Nama", "Prodi", "Email"],
             schema: string().min(8).max(8),
         },
     },
@@ -102,6 +89,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     activeProject: () => get().getProject(),
-    activeTypeKeys: () => get().activeProject()?.typeKeys ?? [],
+    activeColumnKeys: () => get().activeProject()?.columnKeys ?? [],
     activeSchema: () => get().activeProject()?.schema ?? string(),
 }));

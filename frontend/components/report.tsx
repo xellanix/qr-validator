@@ -55,8 +55,11 @@ export function ReportView() {
     const datasetKey = useProjectStore(
         (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKey,
     );
-    const typeKeys = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.typeKeys,
+    const datasetKeyLabel = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKeyLabel,
+    );
+    const columnKeys = useProjectStore(
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.columnKeys,
     );
     const itemsPerPage = 10;
 
@@ -127,10 +130,10 @@ export function ReportView() {
 
             const toastId = toast(`Exporting ${sorted ? "Sorted" : "Unsorted"} CSV...`);
 
-            const _typeKeys = useProjectStore.getState().activeTypeKeys();
+            const _columnKeys = useProjectStore.getState().activeColumnKeys();
             const headers = [
                 "present",
-                ..._typeKeys,
+                ..._columnKeys,
                 "validatorName",
                 "validatedAt",
                 "status",
@@ -148,7 +151,7 @@ export function ReportView() {
             );
             const buffer = await useSocketStore
                 .getState()
-                .emitAck<BlobBuffer>("client:report:export", rows, _typeKeys);
+                .emitAck<BlobBuffer>("client:report:export", rows, _columnKeys);
             if (!buffer) return;
             {
                 const now = new Date();
@@ -289,8 +292,10 @@ export function ReportView() {
                                 <div className="w-full bg-input/30 -z-10 absolute size-full" />
                                 <TableRow>
                                     <TableHead className="text-center">Present</TableHead>
-                                    {typeKeys?.map((key) => (
-                                        <TableHead key={key}>{key}</TableHead>
+                                    {columnKeys?.map((key) => (
+                                        <TableHead key={key}>
+                                            {key === datasetKey ? datasetKeyLabel : key}
+                                        </TableHead>
                                     ))}
                                     <TableHead>Validator</TableHead>
                                     <TableHead>Validated At</TableHead>
@@ -305,7 +310,7 @@ export function ReportView() {
                                 ) : (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={4 + (typeKeys?.length ?? 0)}
+                                            colSpan={4 + (columnKeys?.length ?? 0)}
                                             className="text-center"
                                         >
                                             No results found.
