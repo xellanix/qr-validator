@@ -34,6 +34,7 @@
    - `security`: security
    - `app`: app related
    - `console`: console related
+   - `project`: project (store) related
 
    **Note on Scopes**: 
    - If the change doesn't fit the map or is too generic, leave the scope empty: `type: subject`.

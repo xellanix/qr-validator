@@ -100,7 +100,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             ],
         },
     },
-    activeId: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
+    activeId: null,
     edit: {
         activePage: "1",
         projectId: null,
@@ -126,7 +126,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const dataset = await getDataset(datasetPath, datasetKey);
 
         set((s) => ({
-            activeId: id,
+            activeId: _id,
             projects: {
                 ...s.projects,
                 [_id!]: { ..._project, dataset },
