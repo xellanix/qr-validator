@@ -9,7 +9,6 @@ export function project(io: Server, socket: Socket) {
 
     socket.on("client:project:activation:toggle", (id: string, checked: boolean) => {
         activeId = (checked && id) || null;
-        console.log(id, checked);
         io.emit("server:project:activation:toggle", activeId);
     });
 }
