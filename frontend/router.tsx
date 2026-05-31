@@ -1,7 +1,10 @@
+import { lazy } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import HomePage from "@/app";
-import ConsolePage from "@/app/console";
-import Layout, { ConsoleGuard } from "@/app/layout";
+import ConsoleGuard from "@/app/console/layout";
+import Layout from "@/app/layout";
+
+const HomePage = lazy(() => import("@/app"));
+const ConsolePage = lazy(() => import("@/app/console"));
 
 export default function App() {
     return (

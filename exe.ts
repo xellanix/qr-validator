@@ -24,6 +24,7 @@ const result = await Bun.build({
     sourcemap: "none",
     format: "esm",
     bytecode: true,
+    splitting: true,
     define: {
         "process.env.NODE_ENV": JSON.stringify("production"),
         VERSION: JSON.stringify(version.version),

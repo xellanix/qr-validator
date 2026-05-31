@@ -25,6 +25,7 @@ export default defineConfig({
         minify: true,
         assetsInlineLimit: 0,
         outDir: "dist/frontend",
+        modulePreload: false
     },
     resolve: {
         alias: {

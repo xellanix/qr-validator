@@ -1,11 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAppStore } from "@/stores/app.store";
+import { Outlet } from "react-router-dom";
 import { useUserStore } from "@/stores/user.store";
 import { AuthView } from "@/components/auth";
-import { Synchronizer } from "@/components/console";
+import { Synchronizer } from "@/components/console/synchronizer";
 import { AppHeader } from "@/components/core/header";
 import { Toaster } from "@/components/ui/sonner";
-import { Spinner } from "@/components/ui/spinner";
+import { LoadingGuard, SuspenseGuard } from "@/app/_components/loading";
 
 export default function Layout() {
     return (
@@ -15,29 +14,17 @@ export default function Layout() {
                     <div className="flex size-full flex-col overflow-hidden *:px-4 *:first:pt-4 *:last:pb-4 sm:px-8 sm:*:first:pt-8 sm:*:last:pb-8">
                         <AppHeader />
 
-                        <LoadingGuard>
-                            <AuthGuard />
-                        </LoadingGuard>
+                        <SuspenseGuard>
+                            <LoadingGuard>
+                                <AuthGuard />
+                            </LoadingGuard>
+                        </SuspenseGuard>
                     </div>
                 </div>
             </section>
             <Toaster richColors={true} />
         </main>
     );
-}
-
-function LoadingGuard({ children }: { children: React.ReactNode }) {
-    const isLoading = useAppStore((s) => s.isLoading);
-
-    if (isLoading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <Spinner className="size-12" />
-            </div>
-        );
-    }
-
-    return children;
 }
 
 function AuthGuard() {
@@ -55,21 +42,5 @@ function AuthGuard() {
             <Synchronizer />
             <Outlet />
         </>
-    );
-}
-
-function ConsoleGuardImpl() {
-    if (!useUserStore.getState().hasConsoleAccess()) {
-        return <Navigate to="/" replace />;
-    }
-
-    return <Outlet />;
-}
-
-export function ConsoleGuard() {
-    return (
-        <LoadingGuard>
-            <ConsoleGuardImpl />
-        </LoadingGuard>
     );
 }
