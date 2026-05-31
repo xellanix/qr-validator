@@ -8,7 +8,7 @@ export default function ConsolePage() {
 
     return (
         <div className="flex flex-col size-full overflow-hidden">
-            <div className="flex flex-col overflow-hidden p-1 -m-1 flex-1 gap-4">
+            <div className="flex flex-col overflow-hidden p-1 -m-1 pt-1.25 flex-1 gap-4">
                 <ActiveProject />
                 <AllProjects />
             </div>
