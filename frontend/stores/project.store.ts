@@ -107,29 +107,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: null,
     },
 
-    getProject: (id) => {
-        const { projects, activeId } = get();
-        const _id = id ?? activeId;
-        return (_id && projects[_id]) || null;
-    },
+    getProject: (id = get().activeId) => (id && get().projects[id]) || null,
 
-    initDataset: async (id) => {
-        const { activeId, getProject } = get();
-        const _id = id ?? activeId;
-        const _project = getProject(_id);
-        if (!_project) {
-            set({ activeId: null });
-            return;
+    initDataset: async (id = get().activeId) => {
+        const project = get().getProject(id);
+        if (!project) {
+            return set({ activeId: null });
         }
-        const { datasetPath, datasetKey } = _project;
-
+        const { datasetPath, datasetKey } = project;
         const dataset = await getDataset(datasetPath, datasetKey);
 
         set((s) => ({
-            activeId: _id,
+            activeId: id,
             projects: {
                 ...s.projects,
-                [_id!]: { ..._project, dataset },
+                [id!]: { ...project, dataset },
             },
         }));
     },
