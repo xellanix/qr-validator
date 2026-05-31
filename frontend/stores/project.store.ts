@@ -1,14 +1,24 @@
-import type { ZodString } from "zod";
+import type { ZodType } from "zod";
 import type { Dataset, DatasetKey } from "@/types";
-import type { Project } from "@/types/project";
+import type { EditedProject, Project, SchemaObjectSortable } from "@/types/project";
 import { toast } from "sonner";
 import { string } from "zod";
 import { create } from "zustand";
 import { createSingletonAsyncLoader, getBackendUrl } from "@/lib/utils";
+import { UniqueIdGenerator } from "@/generators/uid";
+import { INPUT_SCHEMAS } from "@/registry/input-schema";
+
+interface EditMetadata {
+    activePage: string;
+    projectId: string | null;
+    data: EditedProject | null;
+}
 
 interface ProjectState {
     projects: Record<string, Project>;
     activeId: string | null;
+
+    edit: EditMetadata;
 }
 
 interface ProjectActions {
@@ -18,7 +28,18 @@ interface ProjectActions {
 
     activeProject: () => Project | null;
     activeColumnKeys: () => DatasetKey[];
-    activeSchema: () => ZodString;
+    activeSchema: () => ZodType<string>;
+
+    setActivePage: (page: string) => void;
+    startEdit: (id: string) => void;
+    applyEdit: () => void;
+    resetEdit: () => void;
+
+    updateEditSchema: (
+        schemas?:
+            | SchemaObjectSortable[]
+            | ((prev: SchemaObjectSortable[]) => SchemaObjectSortable[]),
+    ) => void;
 }
 
 type ProjectStore = ProjectState & ProjectActions;
@@ -39,6 +60,19 @@ export const getDataset = createSingletonAsyncLoader(async (path: string, key: s
     return map;
 });
 
+const schemaObjectsToZod = (schemas: SchemaObjectSortable[]): ZodType<string> => {
+    let zodString: ZodType<string> = string();
+    for (const schema of schemas) {
+        if (!(schema.type in INPUT_SCHEMAS)) continue;
+
+        zodString = INPUT_SCHEMAS[schema.type as keyof typeof INPUT_SCHEMAS].builder(
+            zodString,
+            schema.value,
+        );
+    }
+    return zodString;
+};
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
     projects: {
         "fa56a6eb-b343-41d7-8535-769c88fdafb0": {
@@ -56,10 +90,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 Email: "text",
             },
             columnKeys: ["NIM", "Nama", "Prodi", "Email"],
-            schema: string().min(8).max(8),
+            schema: string().length(8),
+            schemaObjects: [
+                {
+                    sortId: UniqueIdGenerator.nextNumeric(),
+                    type: "length",
+                    value: "8",
+                },
+            ],
         },
     },
     activeId: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
+    edit: {
+        activePage: "1",
+        projectId: null,
+        data: null,
+    },
 
     getProject: (id) => {
         const { projects, activeId } = get();
@@ -91,4 +137,52 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     activeProject: () => get().getProject(),
     activeColumnKeys: () => get().activeProject()?.columnKeys ?? [],
     activeSchema: () => get().activeProject()?.schema ?? string(),
+
+    setActivePage: (page) => set((s) => ({ edit: { ...s.edit, activePage: page } })),
+    startEdit: (id) => {
+        set((s) => {
+            const data = s.projects[id];
+            if (!data) return s;
+            const { dataset, ...rest } = data;
+            return {
+                edit: { ...s.edit, activePage: "1", projectId: id, data: { ...rest } },
+            };
+        });
+    },
+    applyEdit: () => {
+        set((s) => {
+            const { projectId, data } = s.edit;
+            if (!projectId || !data) return s;
+
+            return {
+                projects: {
+                    ...s.projects,
+                    [projectId]: { ...s.projects[projectId], ...data },
+                },
+                edit: { ...s.edit, activePage: "1", projectId: null, data: null },
+            };
+        });
+    },
+    resetEdit: () => {
+        set((s) => ({ edit: { ...s.edit, activePage: "1", projectId: null, data: null } }));
+    },
+
+    updateEditSchema: (schemas) => {
+        set((s) => {
+            const { data } = s.edit;
+            if (!data) return s;
+
+            const schemaObjects =
+                (schemas &&
+                    (typeof schemas === "function" ? schemas(data.schemaObjects) : schemas)) ??
+                data.schemaObjects;
+
+            return {
+                edit: {
+                    ...s.edit,
+                    data: { ...data, schema: schemaObjectsToZod(schemaObjects), schemaObjects },
+                },
+            };
+        });
+    },
 }));

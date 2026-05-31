@@ -6,6 +6,7 @@ import { isTrulyLocal } from "$/lib/utils";
 import { TunnelManager } from "$/tunnel-manager";
 import { auth, setupSocketAuth } from "$/sockets/auth";
 import { history } from "$/sockets/history";
+import { project } from "$/sockets/project";
 import { report } from "$/sockets/report";
 import { security } from "$/sockets/security";
 
@@ -36,6 +37,7 @@ io.on("connection", (socket) => {
     console.log("Device name:", hostname());
 
     auth(io, socket);
+    project(io, socket);
     history(io, socket);
     security(io, socket);
     report(io, socket);

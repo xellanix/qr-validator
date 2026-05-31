@@ -2,6 +2,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAppStore } from "@/stores/app.store";
 import { useUserStore } from "@/stores/user.store";
 import { AuthView } from "@/components/auth";
+import { Synchronizer } from "@/components/console";
 import { AppHeader } from "@/components/core/header";
 import { Toaster } from "@/components/ui/sonner";
 import { Spinner } from "@/components/ui/spinner";
@@ -49,7 +50,12 @@ function AuthGuard() {
         );
     }
 
-    return <Outlet />;
+    return (
+        <>
+            <Synchronizer />
+            <Outlet />
+        </>
+    );
 }
 
 function ConsoleGuardImpl() {

@@ -1,4 +1,4 @@
-import type { ZodString } from "zod";
+import type { ZodType } from "zod";
 import type { DataContentType, Dataset, DatasetKey } from "@/types";
 
 /**
@@ -44,7 +44,19 @@ export interface Project {
     columnKeys: DatasetKey[];
 
     /** The schema used for the initial layer of data validation before {@link dataset}-level checks are applied. */
-    schema: ZodString;
+    schema: ZodType<string>;
+
+    /** The schema objects used for editing the {@link schema}. */
+    schemaObjects: SchemaObjectSortable[];
 }
 
 export type EditedProject = Omit<Project, "dataset">;
+
+export type SchemaObject = {
+    type: string;
+    value?: string;
+};
+
+export type SchemaObjectSortable = SchemaObject & {
+    sortId: number;
+};
