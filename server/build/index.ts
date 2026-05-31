@@ -1,4 +1,4 @@
-import version from "./frontend/data/version.json";
+import version from "@/data/version.json";
 
 console.log("⌛ Building server...");
 
