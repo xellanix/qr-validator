@@ -1,22 +1,13 @@
-import { ArchiveOff03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "react-router-dom";
 import { useProjectStore } from "@/stores/project.store";
 import { useUserStore } from "@/stores/user.store";
 import { HomePageTabs } from "@/components/core/tabs";
 import { Synchronizer } from "@/components/history";
 import { Button } from "@/components/ui/button";
-import {
-    Empty,
-    EmptyContent,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
-} from "@/components/ui/empty";
+import { EmptyProject } from "@/app/_components/empty";
 
 export default function HomePage() {
-    if (useProjectStore((s) => !s.activeId)) return <EmptyProject />;
+    if (useProjectStore((s) => !s.activeId)) return <EmptyProject2 />;
 
     return (
         <>
@@ -39,29 +30,16 @@ const levelToEmpty = (level: number) => {
             return "Please ask your admin to activate a project to view history.";
     }
 };
-function EmptyProject() {
+function EmptyProject2() {
     const level = useUserStore((s) => s.user?.authorizeLevel ?? 0);
 
     return (
-        <div className="flex flex-col size-full overflow-hidden">
-            <div className="flex flex-col overflow-hidden p-1 -m-1 pt-1.25 flex-1 gap-4">
-                <Empty className="bg-card text-card-foreground rounded-2xl ring-1 ring-border">
-                    <EmptyHeader>
-                        <EmptyMedia variant={"icon"}>
-                            <HugeiconsIcon icon={ArchiveOff03Icon} />
-                        </EmptyMedia>
-                        <EmptyTitle>No Active Project</EmptyTitle>
-                        <EmptyDescription>{levelToEmpty(level)}</EmptyDescription>
-                    </EmptyHeader>
-                    {level === 3 && (
-                        <EmptyContent>
-                            <Button asChild>
-                                <Link to="/console">Activate a Project</Link>
-                            </Button>
-                        </EmptyContent>
-                    )}
-                </Empty>
-            </div>
-        </div>
+        <EmptyProject title={"No Active Project"} description={levelToEmpty(level)}>
+            {level === 3 && (
+                <Button asChild>
+                    <Link to="/console">Activate a Project</Link>
+                </Button>
+            )}
+        </EmptyProject>
     );
 }
