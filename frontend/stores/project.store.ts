@@ -19,6 +19,7 @@ interface ProjectState {
     activeId: string | null;
 
     edit: EditMetadata;
+    deleteId: string | null;
 }
 
 interface ProjectActions {
@@ -40,6 +41,8 @@ interface ProjectActions {
             | SchemaObjectSortable[]
             | ((prev: SchemaObjectSortable[]) => SchemaObjectSortable[]),
     ) => void;
+
+    deleteProject: () => void;
 }
 
 type ProjectStore = ProjectState & ProjectActions;
@@ -106,6 +109,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         projectId: null,
         data: null,
     },
+    deleteId: null,
 
     getProject: (id = get().activeId) => (id && get().projects[id]) || null,
 
@@ -174,6 +178,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                     ...s.edit,
                     data: { ...data, schema: schemaObjectsToZod(schemaObjects), schemaObjects },
                 },
+            };
+        });
+    },
+
+    deleteProject: () => {
+        set((s) => {
+            if (!s.deleteId) return s;
+
+            const { [s.deleteId]: _, ...projects } = s.projects;
+            return {
+                deleteId: null,
+                projects,
             };
         });
     },

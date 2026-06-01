@@ -1,6 +1,7 @@
 import { ArrowDown01Icon, Delete03Icon, Edit03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
 import { Footer } from "@/components/dialogs/projects/edit/footer";
 import { SidebarFrame } from "@/components/dialogs/projects/edit/frame";
@@ -33,13 +34,18 @@ export function ProjectMoreButton({ id }: { id: string }) {
         return dialogType === "edit" ? (
             <ProjectEditDialog setOpenDialog={setOpenDialog} />
         ) : (
-            <ProjectDeleteDialog />
+            <ProjectDeleteDialog setOpenDialog={setOpenDialog} />
         );
     }, [dialogType]);
 
     const editProject = () => {
         useProjectStore.getState().startEdit(id);
         setDialogType("edit");
+    };
+
+    const deleteProject = () => {
+        useProjectStore.setState({ deleteId: id });
+        setDialogType("delete");
     };
 
     return (
@@ -62,7 +68,7 @@ export function ProjectMoreButton({ id }: { id: string }) {
                         <DropdownMenuItem
                             variant={"destructive"}
                             className="gap-2"
-                            onSelect={() => setDialogType("delete")}
+                            onSelect={deleteProject}
                         >
                             <HugeiconsIcon icon={Delete03Icon} />
                             Delete
@@ -103,19 +109,22 @@ function ProjectEditDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => v
     );
 }
 
-function ProjectDeleteDialog() {
+function ProjectDeleteDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => void }) {
+    const projectName = useProjectStore((s) => s.deleteId && s.projects[s.deleteId]?.name);
+
+    const handleDelete = () => {
+        useProjectStore.getState().deleteProject();
+        setOpenDialog(false);
+        toast.success(`Project ${projectName} deleted.`);
+    };
+
     return (
-        <DialogContent
-            showCloseButton={false}
-            onEscapeKeyDown={disableCloseExceptButton}
-            onPointerDownOutside={disableCloseExceptButton}
-            onInteractOutside={disableCloseExceptButton}
-        >
+        <DialogContent showCloseButton={false}>
             <DialogHeader>
-                <DialogTitle>Delete</DialogTitle>
+                <DialogTitle>Delete Project</DialogTitle>
                 <DialogDescription>
-                    Set up your admin account to launch projects, record presence, and manage the
-                    team permissions.
+                    Are you sure you want to delete this project (
+                    <b className="font-semibold">{projectName}</b>)? This action cannot be undone.
                 </DialogDescription>
             </DialogHeader>
 
@@ -123,7 +132,9 @@ function ProjectDeleteDialog() {
                 <DialogClose asChild>
                     <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button type="submit">Create Admin Account</Button>
+                <Button type="submit" variant={"destructive"} onClick={handleDelete}>
+                    Delete
+                </Button>
             </DialogFooter>
         </DialogContent>
     );
