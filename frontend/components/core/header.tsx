@@ -9,7 +9,7 @@ export function AppHeader() {
     );
 
     return (
-        <div className="mb-8 flex items-center justify-between *:-mx-4 *:px-4">
+        <div className="mb-8 flex items-center justify-between *:-mx-4 *:px-4 min-h-21">
             <div className="flex flex-col">
                 <div className="flex w-full gap-2">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">PreMark</h1>
