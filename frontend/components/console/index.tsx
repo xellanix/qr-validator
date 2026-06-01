@@ -5,9 +5,23 @@ import { ProjectMoreButton } from "@/components/dialogs/projects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { Switch } from "@/components/ui/switch";
+import { EmptyProject } from "@/app/_components/empty";
 
 export function ActiveProject() {
     const activeProject = useProjectStore((s) => (s.activeId && s.projects[s.activeId]) || null);
+
+    if (!activeProject) {
+        return (
+            <Card className="w-full p-0 **:ring-0">
+                <EmptyProject
+                    title={"No Active Project"}
+                    description={
+                        "Activate a project, so you and your team can start scanning, viewing history, or generating reports."
+                    }
+                ></EmptyProject>
+            </Card>
+        );
+    }
 
     return (
         <Card className="w-full overflow-hidden p-0 *:px-6 *:first:pt-6 *:last:pb-6">
