@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
+import type { DatasetRowKey } from "~/types/dataset";
 import type { SocketCallback } from "$/types";
-import type { BlobBuffer, DatasetKey, User } from "@/types";
+import type { BlobBuffer, User } from "@/types";
 import { writeToBuffer } from "@fast-csv/format";
 import { getPermissions } from "@/lib/permission";
 
@@ -9,7 +10,7 @@ export function report(io: Server, socket: Socket) {
         "client:report:export",
         async (
             rows: string[][],
-            datasetKeys: DatasetKey[],
+            datasetKeys: DatasetRowKey[],
             callback: SocketCallback<BlobBuffer>,
         ) => {
             const user: User | undefined = socket.data.user;

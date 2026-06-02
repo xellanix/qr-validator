@@ -1,12 +1,12 @@
-import type { DatasetValue } from "@/types";
+import type { DatasetRowValue } from "~/types/dataset";
 import { create } from "zustand";
 
 interface ValidateState {
-    candidate: DatasetValue | null;
+    candidate: DatasetRowValue | null;
 }
 
 interface ValidateActions {
-    setCandidate: (candidate: DatasetValue | null) => void;
+    setCandidate: (candidate: DatasetRowValue | null) => void;
 }
 
 type ValidateStore = ValidateState & ValidateActions;

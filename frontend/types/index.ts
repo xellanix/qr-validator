@@ -21,11 +21,3 @@ export type BlobBuffer = {
     buffer: Buffer<ArrayBuffer>;
     type: string;
 };
-
-export type Dataset = Record<string, string>;
-export type DatasetKey = keyof Dataset;
-export type DatasetValue = Dataset[DatasetKey];
-
-export type DataContentType<T = Dataset> = {
-    [K in keyof T]: "text" | "image";
-};

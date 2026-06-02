@@ -1,4 +1,5 @@
-import type { BlobBuffer, Dataset, ScanEntry, ScanStatus } from "@/types";
+import type { DatasetRow } from "~/types/dataset";
+import type { BlobBuffer, ScanEntry, ScanStatus } from "@/types";
 import {
     ArrowDown01Icon,
     ArrowDownZeroOneIcon,
@@ -35,7 +36,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-type JoinedDatasetType = Dataset & {
+type JoinedDatasetType = DatasetRow & {
     present?: "Yes" | "No";
     validatorName?: string;
     validatedAt?: string;

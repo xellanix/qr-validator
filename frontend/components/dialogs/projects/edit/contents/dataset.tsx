@@ -1,4 +1,4 @@
-import type { DataContentType } from "@/types";
+import type { DataContentType } from "~/types/dataset";
 import type { EditedProject } from "@/types/project";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -172,7 +172,11 @@ function StringInputAction({ keyname }: { keyname: keyof EditedProject }) {
 
 function ManageColumnsAction() {
     return (
-        <Button variant={"outline"} size="sm" onClick={() => useProjectStore.getState().setActivePage("2.1")}>
+        <Button
+            variant={"outline"}
+            size="sm"
+            onClick={() => useProjectStore.getState().setActivePage("2.1")}
+        >
             Manage
         </Button>
     );

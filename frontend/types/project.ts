@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { DataContentType, Dataset, DatasetKey } from "@/types";
+import type { DataContentType, DatasetRow, DatasetRowKey } from "~/types/dataset";
 
 /**
  * Represents a project entity
@@ -11,7 +11,7 @@ export interface Project {
     name: string;
 
     /** The primary column name used as a unique identifier for input data matching. */
-    datasetKey: DatasetKey;
+    datasetKey: DatasetRowKey;
     /** The custom display text used to represent the {@link datasetKey} across the user interface. */
     datasetKeyLabel: string;
     /** The file system or storage directory path where the source CSV dataset is located. */
@@ -20,9 +20,9 @@ export interface Project {
     /**
      * The dataset loaded from the datasetPath.
      * @remarks Never set this value directly, use the `initDataset` action instead.
-     * @see {@link Dataset}
+     * @see {@link DatasetRow}
      */
-    dataset: Map<string, Dataset> | null;
+    dataset: Map<string, DatasetRow> | null;
     /**
      * The map of dataset column names and their data types.
      * Used for content validation.
@@ -41,7 +41,7 @@ export interface Project {
      * This is dependent value derived from {@link columns}.
      * Do not update this directly without a corresponding change to {@link columns}.
      */
-    columnKeys: DatasetKey[];
+    columnKeys: DatasetRowKey[];
 
     /** The schema used for the initial layer of data validation before {@link dataset}-level checks are applied. */
     schema: ZodType<string>;

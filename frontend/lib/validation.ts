@@ -1,11 +1,13 @@
 import type { ZodType } from "zod";
-import type { DatasetValue } from "@/types";
+import type { DatasetRowValue } from "~/types/dataset";
 import { ZodError } from "zod";
 import { useProjectStore } from "@/stores/project.store";
 
-type ValidationResult<T> = { success: true; value: T } | { success: false; error: ZodError };
+type ValidationResult =
+    | { success: true; value: DatasetRowValue }
+    | { success: false; error: ZodError };
 
-export function validate(value: string, _schema?: ZodType<string>): ValidationResult<DatasetValue> {
+export function validate(value: string, _schema?: ZodType<string>): ValidationResult {
     try {
         const schema = _schema ?? useProjectStore.getState().activeSchema();
         // Use Zod's .parse() method. If validation fails, it throws an error.

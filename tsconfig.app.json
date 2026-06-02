@@ -28,9 +28,10 @@
         "paths": {
             "@/*": ["./frontend/*"],
             "$/*": ["./server/*"],
+            "~/*": ["./shared/*"],
             "#/*": ["./*"]
         }
     },
-    "include": ["frontend"],
+    "include": ["frontend", "shared"],
     "exclude": ["server"]
 }

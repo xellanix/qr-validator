@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { Dataset, DatasetKey } from "@/types";
+import type { DatasetRow, DatasetRowKey } from "~/types/dataset";
 import type { EditedProject, Project, SchemaObjectSortable } from "@/types/project";
 import { toast } from "sonner";
 import { string } from "zod";
@@ -28,7 +28,7 @@ interface ProjectActions {
     initDataset: (id?: string | null) => Promise<void>;
 
     activeProject: () => Project | null;
-    activeColumnKeys: () => DatasetKey[];
+    activeColumnKeys: () => DatasetRowKey[];
     activeSchema: () => ZodType<string>;
 
     setActivePage: (page: string) => void;
@@ -55,7 +55,7 @@ export const getDataset = createSingletonAsyncLoader(async (path: string, key: s
     if (!res.ok) toast.error("Failed to fetch dataset.");
 
     const json = await res.json();
-    const map = new Map<string, Dataset>();
+    const map = new Map<string, DatasetRow>();
     for (const row of json) {
         map.set(row[key], row);
     }
@@ -123,10 +123,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
         set((s) => ({
             activeId: id,
-            projects: {
-                ...s.projects,
-                [id!]: { ...project, dataset },
-            },
+            projects: { ...s.projects, [id!]: { ...project, dataset } },
         }));
     },
 

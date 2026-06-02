@@ -1,4 +1,5 @@
-import type { DatasetValue, ScanStatus } from "@/types";
+import type { DatasetRowValue } from "~/types/dataset";
+import type { ScanStatus } from "@/types";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
@@ -56,7 +57,7 @@ export function ValidationDialog() {
     );
 }
 
-function getValidationFields(keyValue: DatasetValue) {
+function getValidationFields(keyValue: DatasetRowValue) {
     const _active = useProjectStore.getState().activeProject();
     if (!_active) return;
 
@@ -73,7 +74,7 @@ function getValidationFields(keyValue: DatasetValue) {
     return built;
 }
 
-export function ValidationData({ entry }: { entry: DatasetValue }) {
+export function ValidationData({ entry }: { entry: DatasetRowValue }) {
     const [result, setResult] = useState<React.ReactNode[] | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
