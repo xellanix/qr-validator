@@ -85,7 +85,7 @@ export async function findUserByFile(filePath: string) {
     }
 }
 
-export async function removeUserByToken(rawToken: string | Uint8Array) {
+export function removeUserByToken(rawToken: string | Uint8Array) {
     const hash = createSearchHash(rawToken);
     const info = REMOVE_USER_BY_TOKEN_QUERY.run(hash);
     return info.changes > 0;
