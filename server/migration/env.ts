@@ -2,7 +2,12 @@ import { atomicWrite } from "$/lib/utils";
 import { execDir } from "$/persist";
 
 export async function migrateEnv() {
-    const b32s = ["ENCRYPTION_KEY", "AUTH_ENCRYPTION_KEY", "USERDATA_ENCRYPTION_KEY"];
+    const b32s = [
+        "ENCRYPTION_KEY",
+        "AUTH_ENCRYPTION_KEY",
+        "DATASET_ENCRYPTION_KEY",
+        "USERDATA_ENCRYPTION_KEY",
+    ];
     const b64s = ["HASH_SECRET", "JWT_SECRET"];
     const linesToAdd: string[] = [];
 

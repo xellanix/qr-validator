@@ -4,6 +4,7 @@ import { publicDir } from "$/persist";
 
 const dbPath = publicDir("app.db");
 export const db = new Database(dbPath);
+db.run("PRAGMA foreign_keys = ON;");
 
 const SECRET_KEY = toNonSharedBytes(process.env.HASH_SECRET, 64, false);
 const ENCRYPTION_KEY = toNonSharedBytes(process.env.ENCRYPTION_KEY, 32, false);

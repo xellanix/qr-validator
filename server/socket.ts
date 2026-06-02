@@ -5,6 +5,7 @@ import { FRONTEND_PORT, IS_PROD, SERVER_PORT } from "$/const";
 import { isTrulyLocal } from "$/lib/utils";
 import { TunnelManager } from "$/tunnel-manager";
 import { auth, setupSocketAuth } from "$/sockets/auth";
+import { dataset } from "$/sockets/dataset";
 import { history } from "$/sockets/history";
 import { project } from "$/sockets/project";
 import { report } from "$/sockets/report";
@@ -38,6 +39,7 @@ io.on("connection", (socket) => {
 
     auth(io, socket);
     project(io, socket);
+    dataset(io, socket);
     history(io, socket);
     security(io, socket);
     report(io, socket);
