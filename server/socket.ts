@@ -47,7 +47,7 @@ io.on("connection", (socket) => {
     if (_isTrulyLocal) {
         void socket.join("local-user");
 
-        tunnelMgr.on("status:changed", (status) => {
+        tunnelMgr.once("status:changed", (status) => {
             io.to("local-user").emit("server:tunnel:status", status);
         });
 
