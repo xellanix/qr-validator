@@ -1,8 +1,10 @@
 import type { DataContentType } from "~/types/dataset";
-import type { EditedProject } from "@/types/project";
+import type { ProjectItem } from "@/types/project";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useState } from "react";
 import { useProjectStore } from "@/stores/project.store";
+import { useSocketStore } from "@/stores/socket.store";
 import {
     FrameContainer,
     FrameDescription,
@@ -10,6 +12,17 @@ import {
 } from "@/components/dialogs/projects/edit/frame";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import {
+    Combobox,
+    ComboboxCollection,
+    ComboboxContent,
+    ComboboxEmpty,
+    ComboboxGroup,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxLabel,
+    ComboboxList,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import {
     Item,
@@ -35,7 +48,7 @@ export function DatasetPage() {
         <FrameContainer>
             <FrameHeader>
                 <FrameDescription>
-                    Dataset source configuration, including the dataset path and columns
+                    Dataset source configuration, including the dataset source and columns
                     identifiers.
                 </FrameDescription>
             </FrameHeader>
@@ -43,14 +56,13 @@ export function DatasetPage() {
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
                 <Item variant={"outline"}>
                     <ItemContent>
-                        <ItemTitle>Dataset Path</ItemTitle>
+                        <ItemTitle>Dataset</ItemTitle>
                         <ItemDescription className="line-clamp-none">
-                            The file system or storage directory path where the source CSV dataset
-                            is located.
+                            The dataset source used for validation and report generation.
                         </ItemDescription>
                     </ItemContent>
                     <ItemActions>
-                        <StringInputAction keyname="datasetPath" />
+                        <DatasetSourceAction />
                     </ItemActions>
                 </Item>
             </ItemGroup>
@@ -92,7 +104,7 @@ export function DatasetPage() {
                         </ItemDescription>
                     </ItemContent>
                     <ItemActions>
-                        <StringInputAction keyname="datasetKeyLabel" />
+                        <StringInputAction keyname="keyLabel" />
                     </ItemActions>
                 </Item>
             </ItemGroup>
@@ -118,13 +130,13 @@ export function DatasetColumnsPage() {
 
 function DatasetKeyAction() {
     const columnKeys = useProjectStore((s) => s.edit.data?.columnKeys || []);
-    const primaryColumn = useProjectStore((s) => s.edit.data?.datasetKey || columnKeys[0] || "");
+    const primaryColumn = useProjectStore((s) => s.edit.data?.key || columnKeys[0] || "");
 
     const primaryChanged = (v: string) => {
         useProjectStore.setState((s) => {
             if (!s.edit.data) return s;
 
-            return { edit: { ...s.edit, data: { ...s.edit.data, datasetKey: v } } };
+            return { edit: { ...s.edit, data: { ...s.edit.data, key: v } } };
         });
     };
 
@@ -147,7 +159,60 @@ function DatasetKeyAction() {
     );
 }
 
-function StringInputAction({ keyname }: { keyname: keyof EditedProject }) {
+function DatasetSourceAction() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [datasets, setDatasets] = useState<Record<string, any>[]>([]);
+    const activeDataset = useProjectStore(
+        (s) => datasets.find((d) => d.id === s.edit.data?.datasetId) ?? null,
+    );
+
+    useEffect(() => {
+        const action = async () => {
+            const res = await useSocketStore.getState().emitAck("client:dataset:all");
+            if (!res) return;
+
+            setDatasets(res as typeof datasets);
+        };
+        void action();
+    }, []);
+
+    const datasetChanged = (v: typeof activeDataset) => {
+        useProjectStore.setState((s) => {
+            if (!s.edit.data) return s;
+
+            return { edit: { ...s.edit, data: { ...s.edit.data, datasetId: v?.id ?? null } } };
+        });
+    };
+
+    return (
+        <Combobox
+            items={datasets}
+            value={activeDataset}
+            onValueChange={datasetChanged}
+            itemToStringLabel={(dataset) => dataset.name || dataset.id}
+            limit={5}
+        >
+            <ComboboxInput placeholder="Select a dataset" className="w-42 h-8" />
+            <ComboboxContent className="pointer-events-auto">
+                <ComboboxEmpty>No dataset found.</ComboboxEmpty>
+                <ComboboxList>
+                    <ComboboxGroup>
+                        <ComboboxLabel>Limited to 5</ComboboxLabel>
+                        <ComboboxCollection>
+                            {(dataset) => (
+                                <ComboboxItem key={dataset.id} value={dataset}>
+                                    {dataset.name || dataset.id}
+                                </ComboboxItem>
+                            )}
+                        </ComboboxCollection>
+                    </ComboboxGroup>
+                </ComboboxList>
+            </ComboboxContent>
+        </Combobox>
+    );
+}
+
+function StringInputAction({ keyname }: { keyname: keyof ProjectItem }) {
     const str = useProjectStore((s) => s.edit.data?.[keyname]);
     const setName = (v: string) => {
         useProjectStore.setState((s) => {
@@ -222,13 +287,13 @@ function DatasetColumns() {
 }
 
 function ColumnItemAction({ name, type }: { name: string; type: string }) {
-    const isPrimary = useProjectStore((s) => s.edit.data?.datasetKey === name);
+    const isPrimary = useProjectStore((s) => s.edit.data?.key === name);
 
     const nameChanged = (v: string) => {
         useProjectStore.setState((s) => {
             if (!s.edit.data) return s;
 
-            const datasetKey = s.edit.data.datasetKey === name ? v : s.edit.data.datasetKey;
+            const datasetKey = s.edit.data.key === name ? v : s.edit.data.key;
             const columns: DataContentType = {};
             const columnKeys: string[] = [];
 
@@ -246,7 +311,7 @@ function ColumnItemAction({ name, type }: { name: string; type: string }) {
             }
 
             return {
-                edit: { ...s.edit, data: { ...s.edit.data, datasetKey, columnKeys, columns } },
+                edit: { ...s.edit, data: { ...s.edit.data, key: datasetKey, columnKeys, columns } },
             };
         });
     };

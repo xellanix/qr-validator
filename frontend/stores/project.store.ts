@@ -1,21 +1,28 @@
 import type { ZodType } from "zod";
 import type { DatasetRow, DatasetRowKey } from "~/types/dataset";
-import type { EditedProject, Project, SchemaObjectSortable } from "@/types/project";
-import { toast } from "sonner";
+import type { ProjectWithDataset } from "~/types/project";
+import type { ProjectItem, SchemaObjectSortable } from "@/types/project";
 import { string } from "zod";
 import { create } from "zustand";
-import { createSingletonAsyncLoader, getBackendUrl } from "@/lib/utils";
+import { createSingletonAsyncLoader } from "@/lib/utils";
+import { useSocketStore } from "@/stores/socket.store";
 import { UniqueIdGenerator } from "@/generators/uid";
 import { INPUT_SCHEMAS } from "@/registry/input-schema";
 
 interface EditMetadata {
     activePage: string;
     projectId: string | null;
-    data: EditedProject | null;
+    data: ProjectItem | null;
 }
 
 interface ProjectState {
-    projects: Record<string, Project>;
+    projects: Record<string, ProjectItem>;
+    /**
+     * The dataset loaded from the datasetPath.
+     * @remarks Never set this value directly, use the `initDataset` action instead.
+     * @see {@link DatasetRow}
+     */
+    dataset: Map<string, DatasetRow> | null;
     activeId: string | null;
 
     edit: EditMetadata;
@@ -23,11 +30,15 @@ interface ProjectState {
 }
 
 interface ProjectActions {
-    getProject: (id?: string | null) => Project | null;
+    init: (projects: Record<string, ProjectWithDataset>, id?: string | null) => void;
+    update: (id: string, project: Partial<ProjectItem>) => void;
+    toggleActivation: (id: string | null, newProjects?: Record<string, ProjectWithDataset>) => void;
+
+    getProject: (id?: string | null) => ProjectItem | null;
 
     initDataset: (id?: string | null) => Promise<void>;
 
-    activeProject: () => Project | null;
+    activeProject: () => ProjectItem | null;
     activeColumnKeys: () => DatasetRowKey[];
     activeSchema: () => ZodType<string>;
 
@@ -49,19 +60,25 @@ type ProjectStore = ProjectState & ProjectActions;
 
 // Singleton
 // Ensures that an expensive async function is only ever executed once
-export const getDataset = createSingletonAsyncLoader(async (path: string, key: string) => {
-    const url = new URL(`/api/assets/${encodeURIComponent(path)}?to-json`, getBackendUrl()).href;
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) toast.error("Failed to fetch dataset.");
+export const getDataset = createSingletonAsyncLoader(
+    async (datasetId: number | null, key: string) => {
+        if (datasetId === null) return null;
 
-    const json = await res.json();
-    const map = new Map<string, DatasetRow>();
-    for (const row of json) {
-        map.set(row[key], row);
-    }
+        const rows = await useSocketStore
+            .getState()
+            .emitAck<(DatasetRow | null)[]>("client:dataset:row:all", datasetId);
 
-    return map;
-});
+        if (!rows) return null;
+
+        const map = new Map<string, DatasetRow>();
+        for (const row of rows) {
+            if (!row) continue;
+            map.set(row[key], row);
+        }
+
+        return map;
+    },
+);
 
 const schemaObjectsToZod = (schemas: SchemaObjectSortable[]): ZodType<string> => {
     let zodString: ZodType<string> = string();
@@ -76,33 +93,57 @@ const schemaObjectsToZod = (schemas: SchemaObjectSortable[]): ZodType<string> =>
     return zodString;
 };
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-    projects: {
-        "fa56a6eb-b343-41d7-8535-769c88fdafb0": {
-            id: "fa56a6eb-b343-41d7-8535-769c88fdafb0",
-            name: "ORKESS 4.0",
+const serverToFrontend = (projects: Record<string, ProjectWithDataset>) => {
+    const _ps: Record<string, Record<string, unknown>> = {};
+    for (const k in projects) {
+        if (!Object.hasOwn(projects, k)) continue;
+        _ps[k] = projects[k];
+        const schemas: SchemaObjectSortable[] = [];
+        for (const s of projects[k].schemaObjects) {
+            const _s: Record<string, unknown> = s;
+            _s.sortId = UniqueIdGenerator.nextNumeric();
+            schemas.push(_s as SchemaObjectSortable);
+        }
+        _ps[k].columnKeys = Object.keys(projects[k].columns);
+        _ps[k].schemaObjects = schemas;
+        _ps[k].schema = schemaObjectsToZod(schemas);
+    }
+    console.log(_ps);
+    return _ps as Record<string, ProjectItem>;
+};
 
-            datasetKey: "NIM",
-            datasetKeyLabel: "NIM",
-            datasetPath: "input/orkess4/db.csv",
-            dataset: null,
-            columns: {
-                NIM: "text",
-                Nama: "text",
-                Prodi: "text",
-                Email: "text",
-            },
-            columnKeys: ["NIM", "Nama", "Prodi", "Email"],
-            schema: string().length(8),
-            schemaObjects: [
-                {
-                    sortId: UniqueIdGenerator.nextNumeric(),
-                    type: "length",
-                    value: "8",
-                },
-            ],
-        },
-    },
+const updateServerProject = (project: ProjectItem, prev: ProjectItem) => {
+    const projectsKeys: (keyof ProjectItem)[] = ["name", "datasetId", "schemaObjects"];
+    const datasetsKeys: (keyof ProjectItem)[] = ["key", "keyLabel", "columns"];
+
+    const projectsPayload: Record<string, unknown> = {};
+    const datasetsPayload: Record<string, unknown> = {};
+    for (const k of projectsKeys) {
+        if (project[k] !== prev[k]) {
+            projectsPayload[k] = project[k];
+        }
+    }
+
+    for (const k of datasetsKeys) {
+        if (project[k] !== prev[k]) {
+            datasetsPayload[k] = project[k];
+        }
+    }
+
+    useSocketStore
+        .getState()
+        .emit(
+            "client:project:update",
+            project.id,
+            project.datasetId,
+            projectsPayload,
+            datasetsPayload,
+        );
+};
+
+export const useProjectStore = create<ProjectStore>((set, get) => ({
+    projects: {},
+    dataset: null,
     activeId: null,
     edit: {
         activePage: "1",
@@ -111,20 +152,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
     deleteId: null,
 
+    init: (_projects, id = get().activeId) => {
+        const projects = serverToFrontend(_projects);
+        set({ projects, activeId: id });
+    },
+    update: (id, project) => {
+        set((s) => {
+            if (project.columns) project.columnKeys = Object.keys(project.columns);
+            if (project.schemaObjects) project.schema = schemaObjectsToZod(project.schemaObjects);
+
+            return {
+                projects: {
+                    ...s.projects,
+                    [id]: { ...s.projects[id], ...project },
+                },
+            };
+        });
+    },
+    toggleActivation: (id, newProjects) => {
+        if (!newProjects) return set({ activeId: id });
+
+        const projects = serverToFrontend(newProjects);
+        set({ projects, activeId: id });
+    },
+
     getProject: (id = get().activeId) => (id && get().projects[id]) || null,
 
     initDataset: async (id = get().activeId) => {
         const project = get().getProject(id);
-        if (!project) {
-            return set({ activeId: null });
-        }
-        const { datasetPath, datasetKey } = project;
-        const dataset = await getDataset(datasetPath, datasetKey);
+        if (!project) return;
 
-        set((s) => ({
-            activeId: id,
-            projects: { ...s.projects, [id!]: { ...project, dataset } },
-        }));
+        const dataset = await getDataset(project.datasetId, project.key);
+        set({ dataset });
     },
 
     activeProject: () => get().getProject(),
@@ -136,9 +195,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set((s) => {
             const data = s.projects[id];
             if (!data) return s;
-            const { dataset, ...rest } = data;
             return {
-                edit: { ...s.edit, activePage: "1", projectId: id, data: { ...rest } },
+                edit: { ...s.edit, activePage: "1", projectId: id, data: { ...data } },
             };
         });
     },
@@ -147,10 +205,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const { projectId, data } = s.edit;
             if (!projectId || !data) return s;
 
+            const prev = s.projects[projectId];
+            updateServerProject(data, prev);
+
             return {
                 projects: {
                     ...s.projects,
-                    [projectId]: { ...s.projects[projectId], ...data },
+                    [projectId]: { ...prev, ...data },
                 },
                 edit: { ...s.edit, activePage: "1", projectId: null, data: null },
             };

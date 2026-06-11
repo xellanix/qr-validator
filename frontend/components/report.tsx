@@ -50,14 +50,12 @@ const finalPresent = (initial: string | undefined, status: string | undefined) =
 export function ReportView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const dataset = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.dataset,
-    );
+    const dataset = useProjectStore((s) => s.dataset);
     const datasetKey = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKey,
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.key,
     );
     const datasetKeyLabel = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.datasetKeyLabel,
+        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.keyLabel,
     );
     const columnKeys = useProjectStore(
         (s) => ((s.activeId && s.projects[s.activeId]) || null)?.columnKeys,

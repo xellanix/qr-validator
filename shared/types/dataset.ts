@@ -1,7 +1,7 @@
 export type DatasetPayload = {
     /** The primary column name used as a unique identifier for input data matching. */
     key: string;
-    /** The custom display text used to represent the {@link datasetKey} across the user interface. */
+    /** The custom display text used to represent the {@link key} across the user interface. */
     keyLabel: string;
     /**
      * The map of dataset column names and their data types.

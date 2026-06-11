@@ -1,4 +1,4 @@
-import type { DatasetRowValue } from "~/types/dataset";
+import type { DatasetRow, DatasetRowValue } from "~/types/dataset";
 import type { ScanStatus } from "@/types";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -57,11 +57,14 @@ export function ValidationDialog() {
     );
 }
 
-function getValidationFields(keyValue: DatasetRowValue) {
+async function getValidationFields(keyValue: DatasetRowValue) {
     const _active = useProjectStore.getState().activeProject();
     if (!_active) return;
 
-    const detailed = _active.dataset?.get(keyValue);
+    const detailed = await useSocketStore
+        .getState()
+        .emitAck<DatasetRow>("client:dataset:row:get", _active.datasetId, keyValue);
+    // const detailed = _active.dataset?.get(keyValue);
     if (!detailed) return;
 
     const built = Object.entries(detailed).map(([key, value]) => {
@@ -79,12 +82,16 @@ export function ValidationData({ entry }: { entry: DatasetRowValue }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setLoading(true);
+        const action = async () => {
+            setLoading(true);
 
-        const comp = getValidationFields(entry);
-        setResult(comp);
+            const comp = await getValidationFields(entry);
+            setResult(comp);
 
-        setLoading(false);
+            setLoading(false);
+        };
+
+        void action();
     }, [entry]);
 
     return (

@@ -31,7 +31,9 @@ export function ActiveProject() {
             <CardContent className="flex h-full flex-col justify-center overflow-hidden px-0!">
                 <div className="flex flex-col overflow-auto px-6 size-full">
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] auto-rows-auto items-start gap-4 w-full">
-                        {activeProject && <ProjectItem {...activeProject} />}
+                        {activeProject && (
+                            <ProjectItem name={activeProject.name} id={activeProject.id} />
+                        )}
                     </div>
                 </div>
             </CardContent>
@@ -51,7 +53,7 @@ export function AllProjects() {
                 <div className="flex flex-col overflow-auto px-6 size-full">
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] auto-rows-auto items-start gap-4 w-full">
                         {Object.values(projects).map((p, i) => (
-                            <ProjectItem key={i} {...p} />
+                            <ProjectItem key={i} id={p.id} name={p.name} />
                         ))}
                     </div>
                 </div>

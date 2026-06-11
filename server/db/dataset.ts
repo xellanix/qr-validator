@@ -8,7 +8,7 @@ const key = await crypto.subtle.importKey("raw", DATASET_ENCRYPTION_KEY, "AES-GC
     "decrypt",
 ]);
 
-// Setup Table with an Index on the hash
+// Setup Table
 db.run(
     `
 CREATE TABLE IF NOT EXISTS datasets (
@@ -30,9 +30,13 @@ CREATE INDEX IF NOT EXISTS idx_dataset_rows_key_hash ON dataset_rows (dataset_id
 
 // PREDEFINED PREPARED STATEMENTS
 const ADD_DATASET_QUERY = db.prepare("INSERT INTO datasets (payload) VALUES (?)");
+const GET_ALL_DATASETS = db.query<{ id: number; payload: Uint8Array }, []>(
+    "SELECT id, payload FROM datasets",
+);
 const FIND_DATASET_BY_ID_QUERY = db.query<{ payload: Uint8Array }, [number]>(
     "SELECT payload FROM datasets WHERE id = ?",
 );
+const UPDATE_DATASET_BY_ID_QUERY = db.prepare("UPDATE datasets SET payload = ? WHERE id = ?");
 const REMOVE_DATASET_BY_ID_QUERY = db.prepare("DELETE FROM datasets WHERE id = ?");
 
 const ADD_DATASET_ROW_QUERY = db.prepare(
@@ -101,6 +105,20 @@ export async function addDatasetRows(
     }
 }
 
+export async function getAllDatasets() {
+    try {
+        const rows = GET_ALL_DATASETS.all();
+        return await Promise.all(
+            rows.map(async (row) => ({
+                id: row.id,
+                ...(await decryptData<DatasetPayload>(row.payload, key)),
+            })),
+        );
+    } catch {
+        return [];
+    }
+}
+
 export async function findDatasetById(id: number, withRows = false) {
     try {
         const row = FIND_DATASET_BY_ID_QUERY.get(id);
@@ -132,10 +150,7 @@ export async function findDatasetRow(datasetId: number, keyHash?: Uint8Array | D
         return null;
     }
 }
-export async function findDatasetRows(
-    datasetId: number,
-    keyHash?: Uint8Array | DatasetPayload["key"],
-) {
+export async function findDatasetRows(datasetId: number, keyHash?: Uint8Array | DatasetRowValue) {
     try {
         const kh = typeof keyHash === "string" ? createSearchHash(keyHash) : keyHash;
         const rows = kh
@@ -145,6 +160,20 @@ export async function findDatasetRows(
     } catch {
         return [];
     }
+}
+
+export async function updateDataset(id: number, datasetsPayload: Record<string, unknown>) {
+    const prev = await findDatasetById(id);
+    if (!prev) return 0;
+    for (const k in prev) {
+        if (!Object.hasOwn(prev, k)) continue;
+        if (!Object.hasOwn(datasetsPayload, k)) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        prev[k as keyof typeof prev] = datasetsPayload[k] as any;
+    }
+    const payload = await encryptData(JSON.stringify(prev), key);
+    const { changes } = UPDATE_DATASET_BY_ID_QUERY.run(payload, id);
+    return changes;
 }
 
 export function removeDatasetById(id: number) {

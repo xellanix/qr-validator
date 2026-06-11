@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
 import { Button } from "@/components/ui/button";
 import { DialogClose, DialogFooter } from "@/components/ui/dialog";
@@ -10,7 +9,6 @@ export function Footer({ setOpenDialog }: { setOpenDialog: (v: boolean) => void 
     const save = useCallback(() => {
         useProjectStore.getState().applyEdit();
         setOpenDialog(false);
-        toast.success("Project updated.");
     }, [setOpenDialog]);
 
     const insideAnotherPages = activePage.split(".");
