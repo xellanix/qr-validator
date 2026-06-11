@@ -3,4 +3,5 @@ export type Permissions = {
     canReport: boolean;
     canDelete: boolean;
     isUseDataset: boolean;
+    canAccessConsole: boolean;
 };

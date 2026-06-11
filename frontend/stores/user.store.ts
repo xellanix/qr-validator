@@ -33,21 +33,14 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
     hasConsoleAccess: () => {
         if (typeof window === "undefined") return false;
+        if (!window.location.pathname.startsWith("/console")) return false;
 
-        const href = window.location.href;
+        const host = window.location.host;
         const port = import.meta.env.DEV ? "26052" : "26051";
-        if (
-            !(
-                href.endsWith(`localhost:${port}/console`) ||
-                href.endsWith(`127.0.0.1:${port}/console`)
-            )
-        ) {
+        if (!(host === `localhost:${port}` || host === `127.0.0.1:${port}`)) {
             return false;
         }
 
-        const level = get().user?.authorizeLevel ?? 0;
-        if (level < 2) return false;
-
-        return true;
+        return get().canAccessConsole;
     },
 }));

@@ -6,6 +6,7 @@ export const readOnlyPermission: Permissions = {
     canReport: false,
     canDelete: false,
     isUseDataset: false,
+    canAccessConsole: false,
 };
 
 export function getPermissions(level: User["authorizeLevel"]) {
@@ -22,6 +23,10 @@ export function getPermissions(level: User["authorizeLevel"]) {
     if (level >= 2) {
         permissions.canReport = true;
         permissions.canDelete = true;
+    }
+
+    if (level >= 3) {
+        permissions.canAccessConsole = true;
     }
 
     return permissions;
