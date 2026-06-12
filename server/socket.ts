@@ -23,6 +23,11 @@ const engine = new Engine({
 });
 io.bind(engine);
 setupSocketAuth(io);
+if (tunnelMgr.listenerCount("status:changed") === 0) {
+    tunnelMgr.on("status:changed", (status) => {
+        io.to("local-user").emit("server:tunnel:status", status);
+    });
+}
 io.on("connection", (socket) => {
     console.log("✅ Client connected:", socket.id);
 
@@ -46,10 +51,6 @@ io.on("connection", (socket) => {
 
     if (_isTrulyLocal) {
         void socket.join("local-user");
-
-        tunnelMgr.once("status:changed", (status) => {
-            io.to("local-user").emit("server:tunnel:status", status);
-        });
 
         socket.emit("server:tunnel:status", tunnelMgr.status);
         // "client:tunnel:status"
