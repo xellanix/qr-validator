@@ -41,9 +41,6 @@ const GET_ALL_PROJECTS = db.query<ProjectRow, []>(
 const FIND_PROJECT_BY_ID_QUERY = db.query<ProjectRow, [string]>(
     "SELECT id, dataset_id, name, schema_objects FROM projects WHERE id = ?",
 );
-const FIND_DATASET_BY_PROJECT_ID_QUERY = db.query<{ dataset_id: string }, [string]>(
-    "SELECT dataset_id FROM projects WHERE id = ?",
-);
 const REMOVE_PROJECT_BY_ID_QUERY = db.prepare("DELETE FROM projects WHERE id = ?");
 
 export function addProject(datasetId: number, name: string, schemaObjects: SchemaObject[]) {
@@ -107,11 +104,6 @@ export async function findProjectById<D extends boolean = false>(
     } catch {
         return null;
     }
-}
-
-export function findDatasetByProjectId(projectId: string) {
-    const row = FIND_DATASET_BY_PROJECT_ID_QUERY.get(projectId);
-    return row?.dataset_id ?? null;
 }
 
 export function updateProject(id: string, projectsPayload: Record<string, unknown>) {
