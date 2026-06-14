@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { DatasetRow, DatasetRowValue } from "~/types/dataset";
+import type { Project } from "~/types/project";
 import type { SocketCallback } from "$/types";
 import type { User } from "@/types";
 import { findDatasetRow, findDatasetRows, getAllDatasets } from "$/db/dataset";
@@ -9,10 +10,16 @@ export function dataset(io: Server, socket: Socket) {
     socket.on(
         "client:dataset:row:get",
         async (
-            datasetId: number,
+            datasetId: Project["datasetId"] | Project["id"],
             rowKey: DatasetRowValue,
             callback: SocketCallback<DatasetRow>,
         ) => {
+            if (
+                datasetId == null ||
+                (typeof datasetId === "string" && datasetId.trim().length === 0)
+            )
+                return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
+
             const row = await findDatasetRow(datasetId, rowKey);
             if (!row) return callback({ status: "error", error: "Row not found." });
             callback({ status: "success", data: row });
@@ -21,7 +28,16 @@ export function dataset(io: Server, socket: Socket) {
 
     socket.on(
         "client:dataset:row:all",
-        async (datasetId: number, callback: SocketCallback<(DatasetRow | null)[]>) => {
+        async (
+            datasetId: Project["datasetId"] | Project["id"],
+            callback: SocketCallback<(DatasetRow | null)[]>,
+        ) => {
+            if (
+                datasetId == null ||
+                (typeof datasetId === "string" && datasetId.trim().length === 0)
+            )
+                return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
+
             const user: User | undefined = socket.data.user;
             if (!user || !getPermissions(user.authorizeLevel).canAccessConsole) {
                 return callback({

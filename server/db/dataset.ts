@@ -56,6 +56,15 @@ const FIND_DATASET_ROWS_QUERY = db.query<{ payload: Uint8Array }, [number, Uint8
 const FIND_DATASET_ROWS_BY_DATASET_ID_QUERY = db.query<{ payload: Uint8Array }, [number]>(
     "SELECT payload FROM dataset_rows WHERE dataset_id = ?",
 );
+const FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY_AND_KEY_HASH = db.query<
+    { payload: Uint8Array },
+    [string, Uint8Array]
+>(
+    "SELECT r.payload from dataset_rows r JOIN projects p ON r.dataset_id = p.dataset_id WHERE p.id = ? AND r.key_hash = ?",
+);
+const FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY = db.query<{ payload: Uint8Array }, [string]>(
+    "SELECT r.payload from dataset_rows r JOIN projects p ON r.dataset_id = p.dataset_id WHERE p.id = ?",
+);
 const REMOVE_DATASET_ROWS_QUERY = db.prepare(
     "DELETE FROM dataset_rows WHERE dataset_id = ? AND key_hash = ?",
 );
@@ -138,24 +147,46 @@ export async function findDatasetById(id: number, withRows = false) {
     }
 }
 
-export async function findDatasetRow(datasetId: number, keyHash?: Uint8Array | DatasetRowValue) {
+export async function findDatasetRow(
+    datasetId: number | string,
+    keyHash?: Uint8Array | DatasetRowValue,
+) {
     try {
         const kh = typeof keyHash === "string" ? createSearchHash(keyHash) : keyHash;
-        const row = kh
-            ? FIND_DATASET_ROWS_QUERY.get(datasetId, kh)
-            : FIND_DATASET_ROWS_BY_DATASET_ID_QUERY.get(datasetId);
-        if (!row) return null;
-        return await decryptData<DatasetRow>(row.payload, key);
+        let payload: Uint8Array | null = null;
+        if (kh) {
+            if (typeof datasetId === "string")
+                payload =
+                    FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY_AND_KEY_HASH.get(datasetId, kh)
+                        ?.payload ?? null;
+            else payload = FIND_DATASET_ROWS_QUERY.get(datasetId, kh)?.payload ?? null;
+        } else {
+            if (typeof datasetId === "string")
+                payload = FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY.get(datasetId)?.payload ?? null;
+            else payload = FIND_DATASET_ROWS_BY_DATASET_ID_QUERY.get(datasetId)?.payload ?? null;
+        }
+        if (!payload) return null;
+        return await decryptData<DatasetRow>(payload, key);
     } catch {
         return null;
     }
 }
-export async function findDatasetRows(datasetId: number, keyHash?: Uint8Array | DatasetRowValue) {
+export async function findDatasetRows(
+    datasetId: number | string,
+    keyHash?: Uint8Array | DatasetRowValue,
+) {
     try {
         const kh = typeof keyHash === "string" ? createSearchHash(keyHash) : keyHash;
-        const rows = kh
-            ? FIND_DATASET_ROWS_QUERY.all(datasetId, kh)
-            : FIND_DATASET_ROWS_BY_DATASET_ID_QUERY.all(datasetId);
+        let rows: { payload: Uint8Array }[] = [];
+        if (kh) {
+            if (typeof datasetId === "string")
+                rows = FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY_AND_KEY_HASH.all(datasetId, kh);
+            else rows = FIND_DATASET_ROWS_QUERY.all(datasetId, kh);
+        } else {
+            if (typeof datasetId === "string")
+                rows = FIND_DATASET_ROWS_BY_PROJECT_ID_QUERY.all(datasetId);
+            else rows = FIND_DATASET_ROWS_BY_DATASET_ID_QUERY.all(datasetId);
+        }
         return await Promise.all(rows.map((row) => decryptData<DatasetRow>(row.payload, key)));
     } catch {
         return [];

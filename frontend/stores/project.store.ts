@@ -61,12 +61,11 @@ type ProjectStore = ProjectState & ProjectActions;
 // Singleton
 // Ensures that an expensive async function is only ever executed once
 export const getDataset = createSingletonAsyncLoader(
-    async (datasetId: number | null, key: string) => {
-        if (datasetId === null) return null;
+    async (projectId: ProjectItem["id"], key: string) => {
+        if (projectId.trim().length === 0) return null;
 
-        const rows = await useSocketStore
-            .getState()
-            .emitAck<(DatasetRow | null)[]>("client:dataset:row:all", datasetId);
+        const emitAck = useSocketStore.getState().emitAck<(DatasetRow | null)[]>;
+        const rows = await emitAck("client:dataset:row:all", projectId);
 
         if (!rows) return null;
 
@@ -182,7 +181,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const project = get().getProject(id);
         if (!project) return;
 
-        const dataset = await getDataset(project.datasetId, project.key);
+        const dataset = await getDataset(project.id, project.key);
         set({ dataset });
     },
 

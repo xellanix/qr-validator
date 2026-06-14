@@ -10,8 +10,8 @@ export type Project = {
     id: string;
     /** The project name */
     name: string;
-    /** The dataset id */
-    datasetId: number | null;
+    /** The dataset id. Only undefined in non-console mode */
+    datasetId: number | null | undefined;
     /** The schema objects used for editing the {@link schema}. */
     schemaObjects: SchemaObject[];
 };

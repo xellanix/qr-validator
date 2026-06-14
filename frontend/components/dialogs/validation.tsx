@@ -61,10 +61,8 @@ async function getValidationFields(keyValue: DatasetRowValue) {
     const _active = useProjectStore.getState().activeProject();
     if (!_active) return;
 
-    const detailed = await useSocketStore
-        .getState()
-        .emitAck<DatasetRow>("client:dataset:row:get", _active.datasetId, keyValue);
-    // const detailed = _active.dataset?.get(keyValue);
+    const emitAck = useSocketStore.getState().emitAck<DatasetRow>;
+    const detailed = await emitAck("client:dataset:row:get", _active.id, keyValue);
     if (!detailed) return;
 
     const built = Object.entries(detailed).map(([key, value]) => {

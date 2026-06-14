@@ -18,7 +18,7 @@ async function fetchProjects(id: string | null, all?: boolean) {
     if (all) return getAllProjects(true);
 
     if (!id) return {};
-    const project = await findProjectById(id, true);
+    const project = await findProjectById(id, true, true);
     if (!project) return {};
 
     return { [project.id]: project };

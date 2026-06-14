@@ -51,11 +51,15 @@ export function addProject(datasetId: number, name: string, schemaObjects: Schem
     return res?.id ?? null;
 }
 
-async function _getProject(row: ProjectRow, withDataset: boolean) {
+async function _getProject(
+    row: ProjectRow,
+    withDataset: boolean,
+    excludeDatasetId: boolean = false,
+) {
     const schemaObjects = JSON.parse(row.schema_objects) as SchemaObject;
     const p: Record<string, unknown> = {
         id: row.id,
-        datasetId: row.dataset_id,
+        datasetId: excludeDatasetId ? undefined : row.dataset_id,
         name: row.name,
         schemaObjects,
     };
@@ -93,12 +97,13 @@ export async function getAllProjects<D extends boolean = false>(
 export async function findProjectById<D extends boolean = false>(
     id: string,
     withDataset: D = false as D,
+    excludeDatasetId: boolean = false,
 ): Promise<(D extends true ? ProjectWithDataset : Project) | null> {
     const row = FIND_PROJECT_BY_ID_QUERY.get(id);
     if (!row) return null;
 
     try {
-        return (await _getProject(row, withDataset)) as never;
+        return (await _getProject(row, withDataset, excludeDatasetId)) as never;
     } catch {
         return null;
     }
