@@ -4,7 +4,13 @@ import type { SnakeCaseKeys } from "~/types";
 import type { Project, ProjectWithDataset } from "~/types/project";
 import type { User } from "@/types";
 import { updateDataset } from "$/db/dataset";
-import { addProject, findProjectById, getAllProjects, updateProject } from "$/db/project";
+import {
+    addProject,
+    findProjectById,
+    getAllProjects,
+    removeProjectById,
+    updateProject,
+} from "$/db/project";
 import { getPermissions } from "@/lib/permission";
 
 type InitOptions = {
@@ -115,6 +121,15 @@ export function project(io: Server, socket: Socket) {
             socket.broadcast.emit("server:project:update", id, project);
         },
     );
+
+    socket.on("client:project:delete", async (id: string, callback) => {
+        const success = removeProjectById(id);
+        if (success) {
+            if (id === activeId) activeId = null;
+            io.emit("server:project:delete", id);
+        }
+        callback({ status: "success", data: success });
+    });
 
     socket.on("client:project:activation:toggle", async (id: string, checked: boolean) => {
         activeId = (checked && id) || null;

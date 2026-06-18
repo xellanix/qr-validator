@@ -63,8 +63,12 @@ export function Synchronizer() {
                     toast.success("Project updated.");
                 }
             }
-            if (id !== useProjectStore.getState().activeId) return;
+            if (!fetchAll && id !== useProjectStore.getState().activeId) return;
             void useProjectStore.getState().update(id, project);
+        });
+        const [deleteOff] = on("server:project:delete", (id: string) => {
+            if (!fetchAll && id !== useProjectStore.getState().activeId) return;
+            useProjectStore.getState().delete(id);
         });
         const [toggleOff] = on("server:project:activation:toggle", (activeId) => {
             if (!fetchAll) {
@@ -82,6 +86,7 @@ export function Synchronizer() {
             initOff();
             addOff();
             updateOff();
+            deleteOff();
             toggleOff();
         };
     }, [socket]);

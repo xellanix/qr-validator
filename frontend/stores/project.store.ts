@@ -43,6 +43,7 @@ interface ProjectActions {
     init: (projects: Record<string, ProjectWithDataset>, id?: string | null) => void;
     add: (project: PartialKeys<ProjectItem, "schema" | "columnKeys">) => void;
     update: (id: string, project: Partial<ProjectItem>) => void;
+    delete: (id?: string) => void;
     toggleActivation: (id: string | null, newProjects?: Record<string, ProjectWithDataset>) => void;
 
     getProject: (id?: string | null) => ProjectItem | null;
@@ -73,8 +74,6 @@ interface ProjectActions {
             | SchemaObjectSortable[]
             | ((prev: SchemaObjectSortable[]) => SchemaObjectSortable[]),
     ) => void;
-
-    deleteProject: () => void;
 }
 
 type ProjectStore = ProjectState & ProjectActions;
@@ -193,6 +192,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                     [id]: { ...s.projects[id], ...project },
                 },
             };
+        });
+    },
+    delete: (id) => {
+        set((s) => {
+            const deleteId = id || s.deleteId;
+            if (!deleteId) return s;
+
+            const activeId = s.activeId === deleteId ? null : s.activeId;
+            const { [deleteId]: _, ...projects } = s.projects;
+            return { activeId, deleteId: null, projects };
         });
     },
     toggleActivation: (id, newProjects) => {
@@ -323,18 +332,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                     ...s.edit,
                     data: { ...data, schema: schemaObjectsToZod(schemaObjects), schemaObjects },
                 },
-            };
-        });
-    },
-
-    deleteProject: () => {
-        set((s) => {
-            if (!s.deleteId) return s;
-
-            const { [s.deleteId]: _, ...projects } = s.projects;
-            return {
-                deleteId: null,
-                projects,
             };
         });
     },

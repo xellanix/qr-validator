@@ -3,6 +3,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
+import { useSocketStore } from "@/stores/socket.store";
+import { useCallbackLock } from "@/hooks/use-callback-lock";
 import { Footer } from "@/components/dialogs/projects/edit/footer";
 import { SidebarFrame } from "@/components/dialogs/projects/edit/frame";
 import { DialogSidebar } from "@/components/dialogs/projects/edit/sidebar";
@@ -112,11 +114,16 @@ function ProjectEditDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => v
 function ProjectDeleteDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => void }) {
     const projectName = useProjectStore((s) => s.deleteId && s.projects[s.deleteId]?.name);
 
-    const handleDelete = () => {
-        useProjectStore.getState().deleteProject();
+    const { invoke, isLocked } = useCallbackLock(async () => {
+        const emitAck = useSocketStore.getState().emitAck<boolean>;
+        const res = await emitAck("client:project:delete", useProjectStore.getState().deleteId);
+        if (res === undefined) return;
+
         setOpenDialog(false);
-        toast.success(`Project ${projectName} deleted.`);
-    };
+
+        if (res) toast.success("Project deleted.");
+        else toast.error("Failed to delete project.");
+    });
 
     return (
         <DialogContent showCloseButton={false}>
@@ -130,9 +137,11 @@ function ProjectDeleteDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) =>
 
             <DialogFooter className="flex-row justify-end">
                 <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button variant="outline" disabled={isLocked}>
+                        Cancel
+                    </Button>
                 </DialogClose>
-                <Button type="submit" variant={"destructive"} onClick={handleDelete}>
+                <Button type="submit" variant={"destructive"} onClick={invoke} disabled={isLocked}>
                     Delete
                 </Button>
             </DialogFooter>
