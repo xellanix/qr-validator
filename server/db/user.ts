@@ -9,15 +9,6 @@ const key = await crypto.subtle.importKey("raw", AUTH_ENCRYPTION_KEY, "AES-GCM",
     "decrypt",
 ]);
 
-// Setup Table with an Index on the hash
-db.run(
-    `
-CREATE TABLE IF NOT EXISTS users (
-    user_hash BLOB PRIMARY KEY,
-    payload BLOB
-) WITHOUT ROWID`,
-);
-
 // PREDEFINED PREPARED STATEMENTS
 const ADD_USER_QUERY = db.prepare("INSERT INTO users (user_hash, payload) VALUES (?, ?)");
 const FIND_USER_BY_TOKEN_QUERY = db.query<{ payload: Uint8Array }, [Uint8Array]>(

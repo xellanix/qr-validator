@@ -22,7 +22,7 @@ export default function Layout() {
                     </div>
                 </div>
             </section>
-            <Toaster richColors={true} />
+            <Toaster richColors={true} className="pointer-events-auto" />
         </main>
     );
 }

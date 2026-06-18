@@ -2,7 +2,9 @@ import { useCallback } from "react";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { ProjectMoreButton } from "@/components/dialogs/projects";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NewProjectButton } from "@/components/dialogs/projects/add";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { Switch } from "@/components/ui/switch";
 import { EmptyProject } from "@/app/_components/empty";
@@ -48,6 +50,11 @@ export function AllProjects() {
         <Card className="w-full overflow-hidden p-0 *:px-6 *:first:pt-6 *:last:pb-6 flex-1">
             <CardHeader>
                 <CardTitle>Projects</CardTitle>
+                <CardAction>
+                    <NewProjectButton>
+                        <Button size={"sm"}>New Project</Button>
+                    </NewProjectButton>
+                </CardAction>
             </CardHeader>
             <CardContent className="flex h-full flex-col justify-center overflow-hidden px-0!">
                 <div className="flex flex-col overflow-auto px-6 size-full">

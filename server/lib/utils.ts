@@ -1,10 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { Archive, BlobPart } from "bun";
-import type { DatasetRow } from "~/types/dataset";
 import { createDecipheriv } from "crypto";
-import fs from "fs";
 import { rename } from "node:fs/promises";
-import { parse } from "@fast-csv/parse";
 
 export function isTrulyLocal(req: IncomingMessage, ip?: string): boolean {
     const headers = req.headers;
@@ -54,22 +51,6 @@ export function decrypt(token: string, _key: Uint8Array<ArrayBuffer>): string | 
         console.error("Decryption failed:", error);
         return null;
     }
-}
-
-export async function csvToJson(path: string): Promise<DatasetRow[]> {
-    return new Promise((resolve, reject: (error: Error) => void) => {
-        const input = fs.createReadStream(path);
-        const parser = parse({ headers: true, trim: true, ignoreEmpty: true });
-
-        const result: DatasetRow[] = [];
-
-        parser
-            .on("error", () => reject(new Error("Error parsing CSV")))
-            .on("data", (row) => result.push(row))
-            .on("end", () => resolve(result));
-
-        input.pipe(parser);
-    });
 }
 
 export function toNonSharedBytes(data: string | null | undefined, length: number, isThrow = true) {

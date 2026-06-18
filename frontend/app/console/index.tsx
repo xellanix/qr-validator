@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import { useProjectStore } from "@/stores/project.store";
 import { useUserStore } from "@/stores/user.store";
 import { ActiveProject, AllProjects } from "@/components/console";
+import { NewProjectButton } from "@/components/dialogs/projects/add";
 import { Button } from "@/components/ui/button";
 import { EmptyProject } from "@/app/_components/empty";
 
@@ -23,7 +25,14 @@ const isEmptyRecord = <T,>(obj: Record<string, T>) => {
 };
 
 function ConsolePageContent() {
-    const isEmpty = useProjectStore((s) => isEmptyRecord(s.projects));
+    const startedFromEmpty = useRef(false);
+    const isEmpty = useProjectStore((s) => {
+        const noProjects = isEmptyRecord(s.projects);
+        const isDialogOpen = s.newProject !== null;
+        if (isDialogOpen && noProjects) startedFromEmpty.current = true;
+        else if (!isDialogOpen) startedFromEmpty.current = false;
+        return noProjects || startedFromEmpty.current;
+    });
 
     if (isEmpty) {
         return (
@@ -31,7 +40,9 @@ function ConsolePageContent() {
                 title={"No Projects Available"}
                 description={"Get started by creating a new project."}
             >
-                <Button>Create Project</Button>
+                <NewProjectButton>
+                    <Button>Create Project</Button>
+                </NewProjectButton>
             </EmptyProject>
         );
     }

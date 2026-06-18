@@ -1,9 +1,9 @@
 import type { Server, Socket } from "socket.io";
-import type { DatasetRow, DatasetRowValue } from "~/types/dataset";
+import type { DatasetPayload, DatasetRow, DatasetRowValue } from "~/types/dataset";
 import type { Project } from "~/types/project";
 import type { SocketCallback } from "$/types";
 import type { User } from "@/types";
-import { findDatasetRow, findDatasetRows, getAllDatasets } from "$/db/dataset";
+import { addDataset, findDatasetRow, findDatasetRows, getAllDatasets } from "$/db/dataset";
 import { getPermissions } from "@/lib/permission";
 
 export function dataset(io: Server, socket: Socket) {
@@ -62,5 +62,10 @@ export function dataset(io: Server, socket: Socket) {
 
         const rows = await getAllDatasets();
         callback({ status: "success", data: rows });
+    });
+
+    socket.on("client:dataset:add", async (data: DatasetPayload, callback) => {
+        const res = await addDataset(data);
+        callback({ status: "success", data: res });
     });
 }

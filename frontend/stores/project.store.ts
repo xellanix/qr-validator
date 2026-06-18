@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { DatasetRow, DatasetRowKey } from "~/types/dataset";
+import type { DatasetPayload, DatasetRow, DatasetRowKey } from "~/types/dataset";
 import type { ProjectWithDataset } from "~/types/project";
 import type { ProjectItem, SchemaObjectSortable } from "@/types/project";
 import { string } from "zod";
@@ -8,6 +8,8 @@ import { createSingletonAsyncLoader } from "@/lib/utils";
 import { useSocketStore } from "@/stores/socket.store";
 import { UniqueIdGenerator } from "@/generators/uid";
 import { INPUT_SCHEMAS } from "@/registry/input-schema";
+
+type PartialKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
 interface EditMetadata {
     activePage: string;
@@ -25,12 +27,21 @@ interface ProjectState {
     dataset: Map<string, DatasetRow> | null;
     activeId: string | null;
 
+    newProject: {
+        activePageIndex: number;
+        isSuccess: true | string;
+        data: ProjectItem | null;
+        nextHandler: ((prev: ProjectItem | null) => string)[];
+        uploadedDataset: (DatasetPayload & { datasetId: number }) | null;
+        uploadedDatasetBuffer: File | null;
+    } | null;
     edit: EditMetadata;
     deleteId: string | null;
 }
 
 interface ProjectActions {
     init: (projects: Record<string, ProjectWithDataset>, id?: string | null) => void;
+    add: (project: PartialKeys<ProjectItem, "schema" | "columnKeys">) => void;
     update: (id: string, project: Partial<ProjectItem>) => void;
     toggleActivation: (id: string | null, newProjects?: Record<string, ProjectWithDataset>) => void;
 
@@ -43,10 +54,20 @@ interface ProjectActions {
     activeSchema: () => ZodType<string>;
 
     setActivePage: (page: string) => void;
+
+    addNewProject: () => void;
+    registerNextHandler: (
+        handler: (prev: ProjectItem | null) => string,
+    ) => (prev: ProjectItem | null) => string;
+    removeNextHandler: (handler: (prev: ProjectItem | null) => string) => void;
+
     startEdit: (id: string) => void;
     applyEdit: () => void;
     resetEdit: () => void;
 
+    updateNewProjectSchema: (
+        schemas: (prev: SchemaObjectSortable[]) => SchemaObjectSortable[],
+    ) => void;
     updateEditSchema: (
         schemas?:
             | SchemaObjectSortable[]
@@ -107,7 +128,6 @@ const serverToFrontend = (projects: Record<string, ProjectWithDataset>) => {
         _ps[k].schemaObjects = schemas;
         _ps[k].schema = schemaObjectsToZod(schemas);
     }
-    console.log(_ps);
     return _ps as Record<string, ProjectItem>;
 };
 
@@ -144,6 +164,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     projects: {},
     dataset: null,
     activeId: null,
+    newProject: null,
     edit: {
         activePage: "1",
         projectId: null,
@@ -154,6 +175,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     init: (_projects, id = get().activeId) => {
         const projects = serverToFrontend(_projects);
         set({ projects, activeId: id });
+    },
+    add: (project) => {
+        project.columnKeys = project.columns ? Object.keys(project.columns) : [];
+        project.schema = schemaObjectsToZod(project.schemaObjects || []);
+
+        set((s) => ({ projects: { ...s.projects, [project.id]: project as ProjectItem } }));
     },
     update: (id, project) => {
         set((s) => {
@@ -190,6 +217,51 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     activeSchema: () => get().activeProject()?.schema ?? string(),
 
     setActivePage: (page) => set((s) => ({ edit: { ...s.edit, activePage: page } })),
+
+    addNewProject: () => {
+        set((s) => {
+            const np = s.newProject;
+            if (!np?.data) return s;
+
+            return {
+                projects: { ...s.projects, [np.data.id]: np.data },
+                newProject: null,
+            };
+        });
+    },
+    registerNextHandler: (handler) => {
+        set((s) => {
+            const prev = s.newProject ?? {
+                activePageIndex: 0,
+                isSuccess: true,
+                nextHandler: [],
+                data: null,
+                uploadedDataset: null,
+                uploadedDatasetBuffer: null,
+            };
+            return { newProject: { ...prev, nextHandler: [...prev.nextHandler, handler] } };
+        });
+        return handler;
+    },
+    removeNextHandler: (handler) => {
+        set((s) => {
+            const prev = s.newProject ?? {
+                activePageIndex: 0,
+                isSuccess: true,
+                nextHandler: [],
+                data: null,
+                uploadedDataset: null,
+                uploadedDatasetBuffer: null,
+            };
+            return {
+                newProject: {
+                    ...prev,
+                    nextHandler: prev.nextHandler?.filter((h) => h !== handler),
+                },
+            };
+        });
+    },
+
     startEdit: (id) => {
         set((s) => {
             const data = s.projects[id];
@@ -220,6 +292,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set((s) => ({ edit: { ...s.edit, activePage: "1", projectId: null, data: null } }));
     },
 
+    updateNewProjectSchema: (schemas) => {
+        set((s) => {
+            const newProject = s.newProject;
+            const data = newProject?.data;
+            if (!newProject || !data) return s;
+
+            const schemaObjects = schemas(data.schemaObjects);
+
+            return {
+                newProject: {
+                    ...newProject,
+                    data: { ...data, schema: schemaObjectsToZod(schemaObjects), schemaObjects },
+                },
+            };
+        });
+    },
     updateEditSchema: (schemas) => {
         set((s) => {
             const { data } = s.edit;

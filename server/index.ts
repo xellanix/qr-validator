@@ -12,7 +12,7 @@ import {
     trySignIn,
     trySignUp,
 } from "$/lib/auth";
-import { csvToJson } from "$/lib/utils";
+import { tryGetCSVColumnsRequest, trySubmitCSVRequest } from "$/lib/csv";
 import { execDir, publicDir } from "$/persist";
 import { engine } from "$/socket";
 import { getPermissions } from "@/lib/permission";
@@ -45,6 +45,12 @@ serve({
         }),
         "/auth/signup": {
             POST: (req) => trySignUp(req),
+        },
+        "/api/dataset/submit": {
+            POST: trySubmitCSVRequest,
+        },
+        "/api/dataset/extract": {
+            POST: tryGetCSVColumnsRequest,
         },
     },
     async fetch(req, server) {
@@ -126,14 +132,6 @@ async function servePublicFile(reqPath: string, searchParams: URLSearchParams) {
     console.log("> Request path:", reqPath);
     console.log("> Resolved path:", targetPath);
     console.log("> Search params:", searchParams.toJSON());
-
-    // If the requested file is a csv file
-    if (reqPath.endsWith(".csv")) {
-        if (searchParams.has("to-json")) {
-            const json = await csvToJson(targetPath);
-            return Response.json(json);
-        }
-    }
 
     return getBunFile(baseDir, targetPath);
 }

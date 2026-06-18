@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Server, Socket } from "socket.io";
 import type { SnakeCaseKeys } from "~/types";
+import type { Project, ProjectWithDataset } from "~/types/project";
 import type { User } from "@/types";
 import { updateDataset } from "$/db/dataset";
-import { findProjectById, getAllProjects, updateProject } from "$/db/project";
+import { addProject, findProjectById, getAllProjects, updateProject } from "$/db/project";
 import { getPermissions } from "@/lib/permission";
 
 type InitOptions = {
@@ -11,6 +12,8 @@ type InitOptions = {
     projects?: boolean;
     all?: boolean;
 };
+
+type SubmitProject = Omit<Project, "id" | "datasetId"> & { datasetId: number };
 
 let activeId: string | null = "78bbc488-ee32-49ae-86d4-759989f56a57";
 
@@ -63,6 +66,30 @@ export function project(io: Server, socket: Socket) {
 
         socket.emit("server:project:init", res);
     });
+
+    socket.on(
+        "client:project:add",
+        async (
+            project: SubmitProject,
+            forward: Pick<ProjectWithDataset, "columns" | "key" | "keyLabel">,
+        ) => {
+            const projectId = addProject(project.datasetId, project.name, project.schemaObjects);
+            const success = !!projectId;
+            const res = success
+                ? ({
+                      id: projectId,
+                      name: project.name,
+                      datasetId: project.datasetId,
+                      columns: forward.columns,
+                      key: forward.key,
+                      keyLabel: forward.keyLabel,
+                      schemaObjects: project.schemaObjects,
+                  } as Omit<ProjectWithDataset, "columnKeys">)
+                : null;
+            socket.emit("server:project:add", res, success);
+            socket.broadcast.emit("server:project:add", res, success);
+        },
+    );
 
     socket.on(
         "client:project:update",

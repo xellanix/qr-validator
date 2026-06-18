@@ -6,6 +6,51 @@ const dbPath = publicDir("app.db");
 export const db = new Database(dbPath);
 db.run("PRAGMA foreign_keys = ON;");
 
+// Setup Table
+db.run(
+    `
+CREATE TABLE IF NOT EXISTS users (
+    user_hash BLOB PRIMARY KEY,
+    payload BLOB
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS datasets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payload BLOB NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS dataset_rows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER NOT NULL,
+    key_hash BLOB NOT NULL,
+    payload BLOB NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_dataset_rows_key_hash ON dataset_rows (dataset_id, key_hash);
+
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY DEFAULT (
+      lower(
+        hex(randomblob(4)) || '-' || 
+        hex(randomblob(2)) || '-4' || 
+        substr(hex(randomblob(2)), 2) || '-' || 
+        substr('89ab', abs(randomblob(1) % 4) + 1, 1) || 
+        substr(hex(randomblob(2)), 2) || '-' || 
+        hex(randomblob(6))
+      )
+    ),
+    dataset_id INTEGER,
+    name TEXT,
+    schema_objects TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (dataset_id) REFERENCES datasets (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_dataset_id ON projects (dataset_id);
+`,
+);
+
 const SECRET_KEY = toNonSharedBytes(process.env.HASH_SECRET, 64, false);
 const ENCRYPTION_KEY = toNonSharedBytes(process.env.ENCRYPTION_KEY, 32, false);
 

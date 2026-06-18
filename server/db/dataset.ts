@@ -8,26 +8,6 @@ const key = await crypto.subtle.importKey("raw", DATASET_ENCRYPTION_KEY, "AES-GC
     "decrypt",
 ]);
 
-// Setup Table
-db.run(
-    `
-CREATE TABLE IF NOT EXISTS datasets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    payload BLOB NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS dataset_rows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dataset_id INTEGER NOT NULL,
-    key_hash BLOB NOT NULL,
-    payload BLOB NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_dataset_rows_key_hash ON dataset_rows (dataset_id, key_hash);
-`,
-);
-
 // PREDEFINED PREPARED STATEMENTS
 const ADD_DATASET_QUERY = db.prepare("INSERT INTO datasets (payload) VALUES (?)");
 const GET_ALL_DATASETS = db.query<{ id: number; payload: Uint8Array }, []>(
