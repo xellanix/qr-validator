@@ -36,13 +36,16 @@ serve({
             GET: (req) => isAuthenticatedUser(req.headers.get("cookie")),
             POST: (req) => trySignIn(req),
         },
-        "/auth/signout": new Response("OK", {
-            status: 200,
-            headers: {
-                ...AUTH_HEADERS,
-                "Set-Cookie": `auth_token=; HttpOnly; Secure; Path=/; SameSite=${IS_PROD ? "Strict" : "Lax"}; Max-Age=0`,
-            },
-        }),
+        "/auth/signout": () => {
+            const headers = new Headers();
+            for (const [key, value] of Object.entries(AUTH_HEADERS)) {
+                headers.append(key, value);
+            }
+            const securityAttr = `HttpOnly; Secure; Path=/; SameSite=${IS_PROD ? "Strict" : "Lax"}; Max-Age=0`;
+            headers.append("Set-Cookie", `auth_token=; ${securityAttr}`);
+            headers.append("Set-Cookie", `user_hash=; ${securityAttr}`);
+            return new Response("OK", { status: 200, headers });
+        },
         "/auth/signup": {
             POST: (req) => trySignUp(req),
         },

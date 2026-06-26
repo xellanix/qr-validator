@@ -38,8 +38,8 @@ export function AuthView() {
             const buffer = await file.arrayBuffer();
             await attemptAuth(buffer);
         } catch (error) {
-            console.log("Error decoding QR code: ", error);
-            setError("Could not read QR code from the selected file.");
+            console.log("Error reading key code: ", error);
+            setError("Could not read key code from the selected file.");
         }
 
         if (fileInputRef.current) {

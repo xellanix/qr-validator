@@ -1,3 +1,4 @@
+import type { FinalServer } from "$/types";
 import { hostname } from "os";
 import { Server as Engine } from "@socket.io/bun-engine";
 import { Server } from "socket.io";
@@ -12,7 +13,7 @@ import { report } from "$/sockets/report";
 import { security } from "$/sockets/security";
 
 const tunnelMgr = TunnelManager.getInstance();
-const io = new Server({ transports: ["websocket"] });
+const io = new Server({ transports: ["websocket"] }) as unknown as FinalServer;
 const engine = new Engine({
     path: "/api/socket_io/",
     cors: {
@@ -104,6 +105,7 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         const str = `❌ Client disconnected: ${socket.id}`;
         socket.data.user = undefined;
+        socket.data.userHash = undefined;
         console.log(str);
         console.log("-".repeat(Bun.stringWidth(str)));
     });

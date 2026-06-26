@@ -1,8 +1,3 @@
-export interface User {
-    name: string;
-    authorizeLevel: 0 | 1 | 2 | 3;
-}
-
 export type ScanStatus = "Valid" | "Not Valid";
 export interface ScanEntry {
     id: string;

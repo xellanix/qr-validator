@@ -1,11 +1,10 @@
-import type { Server, Socket } from "socket.io";
 import type { DatasetRowKey } from "~/types/dataset";
-import type { SocketCallback } from "$/types";
-import type { BlobBuffer, User } from "@/types";
+import type { FinalServer, FinalSocket, SocketCallback } from "$/types";
+import type { BlobBuffer } from "@/types";
 import { writeToBuffer } from "@fast-csv/format";
 import { getPermissions } from "@/lib/permission";
 
-export function report(io: Server, socket: Socket) {
+export function report(io: FinalServer, socket: FinalSocket) {
     socket.on(
         "client:report:export",
         async (
@@ -13,7 +12,7 @@ export function report(io: Server, socket: Socket) {
             datasetKeys: DatasetRowKey[],
             callback: SocketCallback<BlobBuffer>,
         ) => {
-            const user: User | undefined = socket.data.user;
+            const user = socket.data.user;
             if (!user || !getPermissions(user.authorizeLevel).canReport) {
                 return callback({
                     status: "error",

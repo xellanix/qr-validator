@@ -1,9 +1,10 @@
-import type { User } from "@/types";
+import type { User } from "~/types/user";
 import { parse } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
 import { FRONTEND_PORT } from "$/const";
+import { createSearchHash } from "$/db";
 import { addUser, findUserByToken } from "$/db/user";
-import { toNonSharedBytes } from "$/lib/utils";
+import { bytesToBase64, toNonSharedBytes } from "$/lib/utils";
 
 const JWT_SECRET = toNonSharedBytes(process.env.JWT_SECRET, 64, false);
 
@@ -46,13 +47,16 @@ export async function trySignIn(req: Bun.BunRequest) {
         });
     }
 
-    return new Response("OK", {
-        status: 200,
-        headers: {
-            ...AUTH_HEADERS,
-            "Set-Cookie": `auth_token=${user.jwt}; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`,
-        },
-    });
+    const userHash = bytesToBase64(createSearchHash(body!));
+
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(AUTH_HEADERS)) {
+        headers.append(key, value);
+    }
+    const securityAttr = `HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`;
+    headers.append("Set-Cookie", `auth_token=${user.jwt}; ${securityAttr}`);
+    headers.append("Set-Cookie", `user_hash=${userHash}; ${securityAttr}`);
+    return new Response("OK", { status: 200, headers });
 }
 
 export async function trySignUp(req: Bun.BunRequest) {
@@ -73,13 +77,16 @@ export async function trySignUp(req: Bun.BunRequest) {
     const user = await getUserJwt(userId);
     const jwt = user?.jwt ?? "";
 
-    return new Response("OK", {
-        status: 200,
-        headers: {
-            ...AUTH_HEADERS,
-            "Set-Cookie": `auth_token=${jwt}; HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`,
-        },
-    });
+    const userHash = bytesToBase64(createSearchHash(userId));
+
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(AUTH_HEADERS)) {
+        headers.append(key, value);
+    }
+    const securityAttr = `HttpOnly; Secure; Path=/; SameSite=${isProd ? "Strict" : "Lax"}; Max-Age=86400`;
+    headers.append("Set-Cookie", `auth_token=${jwt}; ${securityAttr}`);
+    headers.append("Set-Cookie", `user_hash=${userHash}; ${securityAttr}`);
+    return new Response("OK", { status: 200, headers });
 }
 
 export async function getUserPayload(token: string) {

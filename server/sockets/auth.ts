@@ -1,10 +1,10 @@
-import type { Server, Socket } from "socket.io";
-import type { SocketCallback } from "$/types";
-import type { User } from "@/types";
+import type { User } from "~/types/user";
+import type { FinalServer, FinalSocket, SocketCallback } from "$/types";
 import { parse } from "cookie";
 import { getUserPayload } from "$/lib/auth";
+import { base64ToBytes } from "$/lib/utils";
 
-export function setupSocketAuth(io: Server) {
+export function setupSocketAuth(io: FinalServer) {
     io.use((_socket, _next) => {
         const action = async () => {
             const socket = _socket;
@@ -13,12 +13,16 @@ export function setupSocketAuth(io: Server) {
             if (!cookieHeader) return next(new Error("No cookies found"));
 
             const cookies = parse(cookieHeader);
-            const token = cookies.auth_token;
+            const { auth_token, user_hash } = cookies;
 
-            if (!token) return next(new Error("Authentication cookie missing"));
+            if (!auth_token || !user_hash) return next(new Error("Authentication cookie missing"));
 
             try {
-                socket.data.user = await getUserPayload(token);
+                socket.data.user = await getUserPayload(auth_token);
+                socket.data.userHash = {
+                    bytes: base64ToBytes(user_hash),
+                    base64: user_hash,
+                };
                 next();
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_) {
@@ -30,7 +34,7 @@ export function setupSocketAuth(io: Server) {
     });
 }
 
-export function auth(io: Server, socket: Socket) {
+export function auth(io: FinalServer, socket: FinalSocket) {
     socket.on("client:auth:sync", (callback: SocketCallback<User>) => {
         if (socket.data.user) {
             // The middleware already verified the JWT and put data here!

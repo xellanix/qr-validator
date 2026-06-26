@@ -41,13 +41,16 @@ CREATE TABLE IF NOT EXISTS projects (
       )
     ),
     dataset_id INTEGER,
+    creator_user_hash BLOB,
     name TEXT,
     schema_objects TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (dataset_id) REFERENCES datasets (id) ON DELETE SET NULL
+    FOREIGN KEY (creator_user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_project_dataset_id ON projects (dataset_id);
+CREATE INDEX IF NOT EXISTS idx_project_user_hash ON projects (creator_user_hash);
 `,
 );
 

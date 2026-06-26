@@ -1,6 +1,5 @@
-import type { Server, Socket } from "socket.io";
-import type { SocketCallback } from "$/types";
-import type { ScanEntry, ScanStatus, User } from "@/types";
+import type { FinalServer, FinalSocket, SocketCallback } from "$/types";
+import type { ScanEntry, ScanStatus } from "@/types";
 import { atomicWrite } from "$/lib/utils";
 import { publicDir } from "$/persist";
 import { getPermissions } from "@/lib/permission";
@@ -55,7 +54,7 @@ async function syncHistoryToDisk() {
     }
 }
 
-export function history(io: Server, socket: Socket) {
+export function history(io: FinalServer, socket: FinalSocket) {
     socket.on("client:history:init", () => {
         if (!socket.data.user) return;
         socket.emit("server:history:update", scanHistory);
@@ -64,7 +63,7 @@ export function history(io: Server, socket: Socket) {
     socket.on(
         "client:history:validation",
         (qrData: string, status: ScanStatus, callback: SocketCallback<string>) => {
-            const user: User | undefined = socket.data.user;
+            const user = socket.data.user;
             if (!user || !getPermissions(user.authorizeLevel).canScan) {
                 return callback({
                     status: "error",
@@ -106,7 +105,7 @@ export function history(io: Server, socket: Socket) {
     );
 
     socket.on("client:history:delete", (idToDelete: string) => {
-        const user: User | undefined = socket.data.user;
+        const user = socket.data.user;
         if (!user || !getPermissions(user.authorizeLevel).canDelete) {
             console.log(`Unauthorized delete attempt by user:`, user?.name);
             return;

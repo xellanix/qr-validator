@@ -1,12 +1,10 @@
-import type { Server, Socket } from "socket.io";
 import type { DatasetPayload, DatasetRow, DatasetRowValue } from "~/types/dataset";
 import type { Project } from "~/types/project";
-import type { SocketCallback } from "$/types";
-import type { User } from "@/types";
+import type { FinalServer, FinalSocket, SocketCallback } from "$/types";
 import { addDataset, findDatasetRow, findDatasetRows, getAllDatasets } from "$/db/dataset";
 import { getPermissions } from "@/lib/permission";
 
-export function dataset(io: Server, socket: Socket) {
+export function dataset(io: FinalServer, socket: FinalSocket) {
     socket.on(
         "client:dataset:row:get",
         async (
@@ -38,7 +36,7 @@ export function dataset(io: Server, socket: Socket) {
             )
                 return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
 
-            const user: User | undefined = socket.data.user;
+            const user = socket.data.user;
             if (!user || !getPermissions(user.authorizeLevel).canAccessConsole) {
                 return callback({
                     status: "error",
@@ -52,7 +50,7 @@ export function dataset(io: Server, socket: Socket) {
     );
 
     socket.on("client:dataset:all", async (callback) => {
-        const user: User | undefined = socket.data.user;
+        const user = socket.data.user;
         if (!user || !getPermissions(user.authorizeLevel).canAccessConsole) {
             return callback({
                 status: "error",

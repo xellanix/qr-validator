@@ -8,19 +8,26 @@ type ProjectRow = ConvertKeysToSnakeCase<Omit<Project, "schemaObjects">> & {
 };
 
 // PREDEFINED PREPARED STATEMENTS
-const ADD_PROJECT_QUERY = db.prepare<{ id: string }, [number, string, string]>(
-    "INSERT INTO projects (dataset_id, name, schema_objects) VALUES (?, ?, ?) RETURNING id",
+const ADD_PROJECT_QUERY = db.prepare<{ id: string }, [number, Uint8Array, string, string]>(
+    "INSERT INTO projects (dataset_id, creator_user_hash, name, schema_objects) VALUES (?, ?, ?, ?) RETURNING id",
 );
-const GET_ALL_PROJECTS = db.query<ProjectRow, []>(
-    "SELECT id, dataset_id, name, schema_objects FROM projects",
+const GET_ALL_PROJECTS = db.query<ProjectRow, [Uint8Array]>(
+    "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ?",
 );
-const FIND_PROJECT_BY_ID_QUERY = db.query<ProjectRow, [string]>(
-    "SELECT id, dataset_id, name, schema_objects FROM projects WHERE id = ?",
+const FIND_PROJECT_BY_ID_QUERY = db.query<ProjectRow, [Uint8Array, string]>(
+    "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ? AND id = ?",
 );
-const REMOVE_PROJECT_BY_ID_QUERY = db.prepare("DELETE FROM projects WHERE id = ?");
+const REMOVE_PROJECT_BY_ID_QUERY = db.prepare(
+    "DELETE FROM projects WHERE creator_user_hash = ? AND id = ?",
+);
 
-export function addProject(datasetId: number, name: string, schemaObjects: SchemaObject[]) {
-    const res = ADD_PROJECT_QUERY.get(datasetId, name, JSON.stringify(schemaObjects));
+export function addProject(
+    userHash: Uint8Array,
+    datasetId: number,
+    name: string,
+    schemaObjects: SchemaObject[],
+) {
+    const res = ADD_PROJECT_QUERY.get(datasetId, userHash, name, JSON.stringify(schemaObjects));
     return res?.id ?? null;
 }
 
@@ -49,9 +56,10 @@ async function _getProject(
 }
 
 export async function getAllProjects<D extends boolean = false>(
+    userHash: Uint8Array,
     withDataset: D = false as D,
 ): Promise<Record<string, D extends true ? ProjectWithDataset : Project>> {
-    const rows = GET_ALL_PROJECTS.all();
+    const rows = GET_ALL_PROJECTS.all(userHash);
     const projects: Record<string, unknown> = {};
 
     for (const row of rows) {
@@ -68,11 +76,12 @@ export async function getAllProjects<D extends boolean = false>(
 }
 
 export async function findProjectById<D extends boolean = false>(
+    userHash: Uint8Array,
     id: string,
     withDataset: D = false as D,
     excludeDatasetId: boolean = false,
 ): Promise<(D extends true ? ProjectWithDataset : Project) | null> {
-    const row = FIND_PROJECT_BY_ID_QUERY.get(id);
+    const row = FIND_PROJECT_BY_ID_QUERY.get(userHash, id);
     if (!row) return null;
 
     try {
@@ -82,15 +91,19 @@ export async function findProjectById<D extends boolean = false>(
     }
 }
 
-export function updateProject(id: string, projectsPayload: Record<string, unknown>) {
+export function updateProject(
+    userHash: Uint8Array,
+    id: string,
+    projectsPayload: Record<string, unknown>,
+) {
     const keys = Object.keys(projectsPayload);
 
     if (keys.length === 0) return 0;
 
     const setClause = keys.map((key) => `${key} = $${key}`).join(", ");
-    const sql = `UPDATE projects SET ${setClause} WHERE id = $id`;
+    const sql = `UPDATE projects SET ${setClause} WHERE creator_user_hash = $creator_user_hash AND id = $id`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const queryParams: Record<string, any> = { $id: id };
+    const queryParams: Record<string, any> = { $creator_user_hash: userHash, $id: id };
     for (const key of keys) {
         queryParams[`$${key}`] = projectsPayload[key];
     }
@@ -101,6 +114,6 @@ export function updateProject(id: string, projectsPayload: Record<string, unknow
     return info.changes;
 }
 
-export function removeProjectById(id: string) {
-    return REMOVE_PROJECT_BY_ID_QUERY.run(id).changes > 0;
+export function removeProjectById(userHash: Uint8Array, id: string) {
+    return REMOVE_PROJECT_BY_ID_QUERY.run(userHash, id).changes > 0;
 }

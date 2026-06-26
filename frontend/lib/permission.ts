@@ -1,4 +1,4 @@
-import type { User } from "@/types";
+import type { User } from "~/types/user";
 import type { Permissions } from "@/types/permission";
 
 export const readOnlyPermission: Permissions = {

@@ -1,4 +1,4 @@
-import type { User } from "@/types";
+import type { User } from "~/types/user";
 import { toast } from "sonner";
 import { getBackendUrl } from "@/lib/utils";
 import { useSocketStore } from "@/stores/socket.store";

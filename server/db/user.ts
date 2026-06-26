@@ -1,7 +1,7 @@
+import type { User } from "~/types/user";
 import { createSearchHash, db, decryptData, encryptData } from "$/db";
 import { base64ToBytes, bytesToBase64, toNonSharedBytes } from "$/lib/utils";
 import { publicDir } from "$/persist";
-import { type User } from "@/types";
 
 const AUTH_ENCRYPTION_KEY = toNonSharedBytes(process.env.AUTH_ENCRYPTION_KEY, 32, false);
 const key = await crypto.subtle.importKey("raw", AUTH_ENCRYPTION_KEY, "AES-GCM", false, [

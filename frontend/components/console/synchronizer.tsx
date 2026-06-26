@@ -17,6 +17,7 @@ export function Synchronizer() {
         const fetchAll = useUserStore.getState().hasConsoleAccess();
         emit("client:project:init", { activation: true, projects: true, all: fetchAll });
 
+        const [errorOff] = on("server:project:error", (error) => toast.error(error));
         const [initOff] = on("server:project:init", ({ status, error, activeId, projects }) => {
             if (status === "error") return toast.error(error);
             void useProjectStore.getState().init(projects, activeId);
@@ -55,14 +56,8 @@ export function Synchronizer() {
                 return { newProject: { ...p, activePageIndex, isSuccess } };
             });
         });
-        const [updateOff] = on("server:project:update", (id, project, changes) => {
-            if (changes !== undefined) {
-                if (changes === 0) {
-                    toast.error("Failed to update project.");
-                } else {
-                    toast.success("Project updated.");
-                }
-            }
+        const [updateOff] = on("server:project:update", (id, project, success) => {
+            if (success === true) toast.success("Project updated.");
             if (!fetchAll && id !== useProjectStore.getState().activeId) return;
             void useProjectStore.getState().update(id, project);
         });
@@ -72,17 +67,13 @@ export function Synchronizer() {
         });
         const [toggleOff] = on("server:project:activation:toggle", (activeId) => {
             if (!fetchAll) {
-                return emit("client:project:init", {
-                    activation: true,
-                    projects: true,
-                    all: fetchAll,
-                });
+                return emit("client:project:init", { activation: true, projects: true });
             }
-
             void useProjectStore.getState().toggleActivation(activeId);
         });
 
         return () => {
+            errorOff();
             initOff();
             addOff();
             updateOff();
