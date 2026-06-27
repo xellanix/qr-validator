@@ -68,7 +68,7 @@ export async function trySubmitCSVRequest(req: Bun.BunRequest) {
 
         const fileData = await req.blob();
         const rows = await csvToJson(fileData);
-        const changes = await addDatasetRows(Number(datasetId), rows, datasetKey);
+        const changes = await addDatasetRows(datasetId, rows, datasetKey);
 
         return Response.json(changes, { headers: AUTH_HEADERS });
     } catch (err: unknown) {

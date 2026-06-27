@@ -32,7 +32,9 @@ interface ProjectState {
         isSuccess: true | string;
         data: ProjectItem | null;
         nextHandler: ((prev: ProjectItem | null) => string)[];
-        uploadedDataset: (DatasetPayload & { datasetId: number }) | null;
+        uploadedDataset:
+            | (DatasetPayload & { datasetId: NonNullable<ProjectItem["datasetId"]> })
+            | null;
         uploadedDatasetBuffer: File | null;
     } | null;
     edit: EditMetadata;
@@ -82,10 +84,11 @@ type ProjectStore = ProjectState & ProjectActions;
 // Ensures that an expensive async function is only ever executed once
 export const getDataset = createSingletonAsyncLoader(
     async (projectId: ProjectItem["id"], key: string) => {
-        if (projectId.trim().length === 0) return null;
+        const trimmed = projectId.trim();
+        if (!trimmed) return null;
 
         const emitAck = useSocketStore.getState().emitAck<(DatasetRow | null)[]>;
-        const rows = await emitAck("client:dataset:row:all", projectId);
+        const rows = await emitAck("client:dataset:row:all", trimmed, true);
 
         if (!rows) return null;
 

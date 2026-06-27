@@ -43,13 +43,13 @@ export function Step6() {
                 keyLabel: data.keyLabel,
             };
 
-            if (Number.isNaN(datasetId) && np.uploadedDatasetBuffer) {
+            if (datasetId === "uploaded" && np.uploadedDatasetBuffer) {
                 const { emitAck } = useSocketStore.getState();
-                const _datasetId = await emitAck<number>("client:dataset:add", datasetPayload);
+                const _datasetId = await emitAck<string>("client:dataset:add", datasetPayload);
                 if (_datasetId == null) return quickError("Failed to add dataset.");
 
                 const url = new URL("/api/dataset/submit", getBackendUrl());
-                url.searchParams.append("id", _datasetId.toString());
+                url.searchParams.append("id", _datasetId);
                 url.searchParams.append("key", data.key);
 
                 const res = await fetch(url.href, {

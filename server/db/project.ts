@@ -8,7 +8,7 @@ type ProjectRow = ConvertKeysToSnakeCase<Omit<Project, "schemaObjects">> & {
 };
 
 // PREDEFINED PREPARED STATEMENTS
-const ADD_PROJECT_QUERY = db.prepare<{ id: string }, [number, Uint8Array, string, string]>(
+const ADD_PROJECT_QUERY = db.prepare<{ id: string }, [string, Uint8Array, string, string]>(
     "INSERT INTO projects (dataset_id, creator_user_hash, name, schema_objects) VALUES (?, ?, ?, ?) RETURNING id",
 );
 const GET_ALL_PROJECTS = db.query<ProjectRow, [Uint8Array]>(
@@ -23,7 +23,7 @@ const REMOVE_PROJECT_BY_ID_QUERY = db.prepare(
 
 export function addProject(
     userHash: Uint8Array,
-    datasetId: number,
+    datasetId: string,
     name: string,
     schemaObjects: SchemaObject[],
 ) {

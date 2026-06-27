@@ -61,18 +61,12 @@ export function Step2() {
 }
 
 type Dataset = DatasetPayload & {
-    id: number;
+    id: string;
 };
 const datasetIdLabel = (dataset: Dataset) => {
     const id = dataset.id;
-    if (isNaN(id)) return "Uploaded Dataset";
+    if (id === "uploaded") return "Uploaded Dataset";
     return `#${id}`;
-};
-const areNumbersEqual = (a: number, b: number) => {
-    if (Number.isNaN(a) && Number.isNaN(b)) {
-        return true;
-    }
-    return a === b;
 };
 
 export function DatasetSourceLabel() {
@@ -90,7 +84,7 @@ function DatasetSourceAction() {
     const [datasets, setDatasets] = useState<Dataset[]>([]);
     const activeDataset = useProjectStore((s) => {
         const id = s.newProject?.data?.datasetId;
-        return (id == null ? null : datasets.find((d) => areNumbersEqual(d.id, id))) ?? null;
+        return (id == null ? null : datasets.find((d) => d.id === id)) ?? null;
     });
 
     useEffect(() => {
@@ -118,20 +112,17 @@ function DatasetSourceAction() {
 
                 setDatasets((prev) => {
                     if (!sd) {
-                        return prev.filter((d) => !areNumbersEqual(d.id, pd!.datasetId));
+                        return prev.filter((d) => d.id !== pd!.datasetId);
                     }
 
-                    const exist = prev.some((d) => areNumbersEqual(d.id, sd.datasetId));
+                    const exist = prev.some((d) => d.id === sd.datasetId);
                     const newDataset = {
                         id: sd.datasetId,
                         key: sd.key,
                         keyLabel: sd.keyLabel,
                         columns: sd.columns,
                     };
-                    if (exist)
-                        return prev.map((d) =>
-                            areNumbersEqual(d.id, sd.datasetId) ? newDataset : d,
-                        );
+                    if (exist) return prev.map((d) => (d.id === sd.datasetId ? newDataset : d));
                     else return [...prev, newDataset];
                 });
             });
@@ -295,7 +286,7 @@ function NewDataset() {
                     if (!prev?.data) return s;
 
                     const rest = {
-                        datasetId: Number.NaN,
+                        datasetId: "uploaded",
                         key: "",
                         keyLabel: "",
                         columns,

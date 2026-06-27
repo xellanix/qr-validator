@@ -15,13 +15,22 @@ CREATE TABLE IF NOT EXISTS users (
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS datasets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT PRIMARY KEY DEFAULT (
+      lower(
+        hex(randomblob(4)) || '-' || 
+        hex(randomblob(2)) || '-4' || 
+        substr(hex(randomblob(2)), 2) || '-' || 
+        substr('89ab', abs(randomblob(1) % 4) + 1, 1) || 
+        substr(hex(randomblob(2)), 2) || '-' || 
+        hex(randomblob(6))
+      )
+    ),
     payload BLOB NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS dataset_rows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dataset_id INTEGER NOT NULL,
+    dataset_id TEXT NOT NULL,
     key_hash BLOB NOT NULL,
     payload BLOB NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -40,7 +49,7 @@ CREATE TABLE IF NOT EXISTS projects (
         hex(randomblob(6))
       )
     ),
-    dataset_id INTEGER,
+    dataset_id TEXT,
     creator_user_hash BLOB,
     name TEXT,
     schema_objects TEXT,

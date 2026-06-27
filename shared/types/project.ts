@@ -11,7 +11,7 @@ export type Project = {
     /** The project name */
     name: string;
     /** The dataset id. Only undefined in non-console mode */
-    datasetId: number | null | undefined;
+    datasetId: string | null | undefined;
     /** The schema objects used for editing the {@link schema}. */
     schemaObjects: SchemaObject[];
 };

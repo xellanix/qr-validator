@@ -27,7 +27,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export function Step3() {
-    const fromDropdown = useProjectStore((s) => !Number.isNaN(s.newProject?.data?.datasetId));
+    const fromDropdown = useProjectStore((s) => s.newProject?.data?.datasetId !== "uploaded");
 
     return (
         <fieldset

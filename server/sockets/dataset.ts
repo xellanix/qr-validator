@@ -9,16 +9,15 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
         "client:dataset:row:get",
         async (
             datasetId: Project["datasetId"] | Project["id"],
+            isProject: boolean,
             rowKey: DatasetRowValue,
             callback: SocketCallback<DatasetRow>,
         ) => {
-            if (
-                datasetId == null ||
-                (typeof datasetId === "string" && datasetId.trim().length === 0)
-            )
+            const trimmed = datasetId?.trim();
+            if (!trimmed)
                 return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
 
-            const row = await findDatasetRow(datasetId, rowKey);
+            const row = await findDatasetRow(trimmed, isProject, rowKey);
             if (!row) return callback({ status: "error", error: "Row not found." });
             callback({ status: "success", data: row });
         },
@@ -28,12 +27,11 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
         "client:dataset:row:all",
         async (
             datasetId: Project["datasetId"] | Project["id"],
+            isProject: boolean,
             callback: SocketCallback<(DatasetRow | null)[]>,
         ) => {
-            if (
-                datasetId == null ||
-                (typeof datasetId === "string" && datasetId.trim().length === 0)
-            )
+            const trimmed = datasetId?.trim();
+            if (!trimmed)
                 return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
 
             const user = socket.data.user;
@@ -44,7 +42,7 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
                 });
             }
 
-            const rows = await findDatasetRows(datasetId);
+            const rows = await findDatasetRows(trimmed, isProject);
             callback({ status: "success", data: rows });
         },
     );
@@ -64,6 +62,7 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
 
     socket.on("client:dataset:add", async (data: DatasetPayload, callback) => {
         const res = await addDataset(data);
+        if (!res) return callback({ status: "error", error: "Failed to add dataset." });
         callback({ status: "success", data: res });
     });
 }

@@ -62,7 +62,7 @@ async function getValidationFields(keyValue: DatasetRowValue) {
     if (!_active) return;
 
     const emitAck = useSocketStore.getState().emitAck<DatasetRow>;
-    const detailed = await emitAck("client:dataset:row:get", _active.id, keyValue);
+    const detailed = await emitAck("client:dataset:row:get", _active.id, true, keyValue);
     if (!detailed) return;
 
     const built = Object.entries(detailed).map(([key, value]) => {

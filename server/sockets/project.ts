@@ -18,7 +18,9 @@ type InitOptions = {
     all?: boolean;
 };
 
-type SubmitProject = Omit<Project, "id" | "datasetId"> & { datasetId: number };
+type SubmitProject = Omit<Project, "id" | "datasetId"> & {
+    datasetId: NonNullable<Project["datasetId"]>;
+};
 
 const activeIds: Record<string, string | null> = {};
 
@@ -111,7 +113,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
 
     socket.on(
         "client:project:update",
-        async (id: string, datasetId: number | null, projectsPayload, datasetsPayload) => {
+        async (id: string, datasetId: Project["datasetId"], projectsPayload, datasetsPayload) => {
             const { user, userHash } = socket.data;
             if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
                 return socket.emit(
@@ -122,7 +124,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
 
             let changes: number = 0;
 
-            if (!isEmptyRecord(datasetsPayload) && datasetId !== null) {
+            if (!isEmptyRecord(datasetsPayload) && datasetId) {
                 changes = await updateDataset(datasetId, datasetsPayload);
             }
 
