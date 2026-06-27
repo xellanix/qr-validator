@@ -70,6 +70,12 @@ export function project(io: FinalServer, socket: FinalSocket) {
             );
         }
 
+        if (opt.all) {
+            void socket.join(userHash.base64);
+        } else {
+            void socket.join(`${userHash.base64}-children`);
+        }
+
         const res: Record<string, unknown> = {};
         const activeId = activeIds[userHash.base64] ?? null;
         if (opt.activation) res.activeId = activeId;
@@ -106,8 +112,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
                       schemaObjects,
                   } as Omit<ProjectWithDataset, "columnKeys">)
                 : null;
-            socket.emit("server:project:add", res, success);
-            socket.broadcast.emit("server:project:add", res, success);
+            io.to(userHash.base64).emit("server:project:add", res, success);
         },
     );
 
@@ -143,7 +148,10 @@ export function project(io: FinalServer, socket: FinalSocket) {
                 return socket.emit("server:response:error", "Failed to update project.");
             }
             socket.emit("server:project:update", id, project, true); // Send the update result back to the updater (client)
-            socket.broadcast.emit("server:project:update", id, project);
+            socket.to(userHash.base64).emit("server:project:update", id, project);
+            if (id === activeIds[userHash.base64]) {
+                io.to(`${userHash.base64}-children`).emit("server:project:update", id, project);
+            }
         },
     );
 
@@ -158,8 +166,12 @@ export function project(io: FinalServer, socket: FinalSocket) {
 
         const success = removeProjectById(userHash.bytes, id);
         if (success) {
-            if (id === activeIds[userHash.base64]) delete activeIds[userHash.base64];
-            io.emit("server:project:delete", id);
+            let rooms = io.to(userHash.base64);
+            if (id === activeIds[userHash.base64]) {
+                delete activeIds[userHash.base64];
+                rooms = rooms.to(`${userHash.base64}-children`);
+            }
+            rooms.emit("server:project:delete", id);
         }
         callback({ status: "success", data: success });
     });
@@ -174,6 +186,8 @@ export function project(io: FinalServer, socket: FinalSocket) {
         }
         const activeId = (checked && id) || null;
         activeIds[userHash.base64] = activeId;
-        io.emit("server:project:activation:toggle", activeId);
+        io.to(userHash.base64)
+            .to(`${userHash.base64}-children`)
+            .emit("server:project:activation:toggle", activeId);
     });
 }

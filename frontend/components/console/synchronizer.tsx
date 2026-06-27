@@ -59,11 +59,9 @@ export function Synchronizer() {
         });
         const [updateOff] = on("server:project:update", (id, project, success) => {
             if (success === true) toast.success("Project updated.");
-            if (!fetchAll && id !== useProjectStore.getState().activeId) return;
             void useProjectStore.getState().update(id, project);
         });
         const [deleteOff] = on("server:project:delete", (id: string) => {
-            if (!fetchAll && id !== useProjectStore.getState().activeId) return;
             useProjectStore.getState().delete(id);
         });
         const [toggleOff] = on("server:project:activation:toggle", (activeId) => {
