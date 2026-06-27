@@ -48,20 +48,28 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
     );
 
     socket.on("client:dataset:all", async (callback) => {
-        const user = socket.data.user;
-        if (!user || !getPermissions(user.authorizeLevel).canAccessConsole) {
+        const { user, userHash } = socket.data;
+        if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
             return callback({
                 status: "error",
                 error: `Unauthorized fetch many attempt by user: ${user?.name}`,
             });
         }
 
-        const rows = await getAllDatasets();
+        const rows = await getAllDatasets(userHash.bytes);
         callback({ status: "success", data: rows });
     });
 
     socket.on("client:dataset:add", async (data: DatasetPayload, callback) => {
-        const res = await addDataset(data);
+        const { user, userHash } = socket.data;
+        if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
+            return socket.emit(
+                "server:response:error",
+                `Unauthorized add attempt by user: ${user?.name}`,
+            );
+        }
+
+        const res = await addDataset(userHash.bytes, data);
         if (!res) return callback({ status: "error", error: "Failed to add dataset." });
         callback({ status: "success", data: res });
     });

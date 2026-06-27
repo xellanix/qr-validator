@@ -25,8 +25,10 @@ CREATE TABLE IF NOT EXISTS datasets (
         hex(randomblob(6))
       )
     ),
+    creator_user_hash BLOB,
     payload BLOB NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS dataset_rows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +57,7 @@ CREATE TABLE IF NOT EXISTS projects (
     schema_objects TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (dataset_id) REFERENCES datasets (id) ON DELETE SET NULL
+    FOREIGN KEY (dataset_id) REFERENCES datasets (id) ON DELETE SET NULL,
     FOREIGN KEY (creator_user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_project_dataset_id ON projects (dataset_id);

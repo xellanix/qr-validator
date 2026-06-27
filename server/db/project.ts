@@ -32,6 +32,7 @@ export function addProject(
 }
 
 async function _getProject(
+    userHash: Uint8Array,
     row: ProjectRow,
     withDataset: boolean,
     excludeDatasetId: boolean = false,
@@ -44,7 +45,7 @@ async function _getProject(
         schemaObjects,
     };
     if (withDataset) {
-        const dataset = row.dataset_id && (await findDatasetById(row.dataset_id, false));
+        const dataset = row.dataset_id && (await findDatasetById(userHash, row.dataset_id, false));
         if (!dataset) return null;
 
         for (const k in dataset) {
@@ -64,7 +65,7 @@ export async function getAllProjects<D extends boolean = false>(
 
     for (const row of rows) {
         try {
-            const p = await _getProject(row, withDataset);
+            const p = await _getProject(userHash, row, withDataset);
             if (!p) continue;
             projects[row.id] = p;
         } catch {
@@ -85,7 +86,7 @@ export async function findProjectById<D extends boolean = false>(
     if (!row) return null;
 
     try {
-        return (await _getProject(row, withDataset, excludeDatasetId)) as never;
+        return (await _getProject(userHash, row, withDataset, excludeDatasetId)) as never;
     } catch {
         return null;
     }

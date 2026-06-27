@@ -65,7 +65,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             (opt.all && (!user || !getPermissions(user.authorizeLevel).canAccessConsole))
         ) {
             return socket.emit(
-                "server:project:error",
+                "server:response:error",
                 `Unauthorized fetch all attempt by user: ${user?.name}`,
             );
         }
@@ -87,7 +87,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             const { user, userHash } = socket.data;
             if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
                 return socket.emit(
-                    "server:project:error",
+                    "server:response:error",
                     `Unauthorized add attempt by user: ${user?.name}`,
                 );
             }
@@ -117,7 +117,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             const { user, userHash } = socket.data;
             if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
                 return socket.emit(
-                    "server:project:error",
+                    "server:response:error",
                     `Unauthorized update attempt by user: ${user?.name}`,
                 );
             }
@@ -125,7 +125,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             let changes: number = 0;
 
             if (!isEmptyRecord(datasetsPayload) && datasetId) {
-                changes = await updateDataset(datasetId, datasetsPayload);
+                changes = await updateDataset(userHash.bytes, datasetId, datasetsPayload);
             }
 
             if (!isEmptyRecord(projectsPayload)) {
@@ -140,7 +140,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             const project = { ...projectsPayload, ...datasetsPayload };
 
             if (changes === 0) {
-                return socket.emit("server:project:error", "Failed to update project.");
+                return socket.emit("server:response:error", "Failed to update project.");
             }
             socket.emit("server:project:update", id, project, true); // Send the update result back to the updater (client)
             socket.broadcast.emit("server:project:update", id, project);
@@ -151,7 +151,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
         const { user, userHash } = socket.data;
         if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
             return socket.emit(
-                "server:project:error",
+                "server:response:error",
                 `Unauthorized delete attempt by user: ${user?.name}`,
             );
         }
@@ -168,7 +168,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
         const { user, userHash } = socket.data;
         if (!userHash || !user || !getPermissions(user.authorizeLevel).canAccessConsole) {
             return socket.emit(
-                "server:project:error",
+                "server:response:error",
                 `Unauthorized activation toggle attempt by user: ${user?.name}`,
             );
         }

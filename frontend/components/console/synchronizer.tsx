@@ -17,7 +17,8 @@ export function Synchronizer() {
         const fetchAll = useUserStore.getState().hasConsoleAccess();
         emit("client:project:init", { activation: true, projects: true, all: fetchAll });
 
-        const [errorOff] = on("server:project:error", (error) => toast.error(error));
+        const [errorOff] = on("server:response:error", (error) => toast.error(error));
+
         const [initOff] = on("server:project:init", ({ status, error, activeId, projects }) => {
             if (status === "error") return toast.error(error);
             void useProjectStore.getState().init(projects, activeId);

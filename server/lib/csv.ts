@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { parse } from "@fast-csv/parse";
 import { addDatasetRows } from "$/db/dataset";
 import { AUTH_HEADERS } from "$/lib/auth";
+import { base64ToBytes } from "$/lib/utils";
 
 export async function isBinaryFile(blob: Blob): Promise<boolean> {
     const arrBuffer = await blob.slice(0, 4).arrayBuffer(); // Read just the first 4 bytes
@@ -66,9 +67,14 @@ export async function trySubmitCSVRequest(req: Bun.BunRequest) {
             return new Response("Bad Request", { status: 400, headers: AUTH_HEADERS });
         }
 
+        const user_hash = req.cookies.get("user_hash");
+        if (!user_hash) {
+            return new Response("Unauthorized", { status: 401, headers: AUTH_HEADERS });
+        }
+
         const fileData = await req.blob();
         const rows = await csvToJson(fileData);
-        const changes = await addDatasetRows(datasetId, rows, datasetKey);
+        const changes = await addDatasetRows(base64ToBytes(user_hash), datasetId, rows, datasetKey);
 
         return Response.json(changes, { headers: AUTH_HEADERS });
     } catch (err: unknown) {

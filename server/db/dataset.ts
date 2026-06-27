@@ -9,17 +9,21 @@ const key = await crypto.subtle.importKey("raw", DATASET_ENCRYPTION_KEY, "AES-GC
 ]);
 
 // PREDEFINED PREPARED STATEMENTS
-const ADD_DATASET_QUERY = db.prepare<{ id: string }, [Uint8Array]>(
-    "INSERT INTO datasets (payload) VALUES (?) RETURNING id",
+const ADD_DATASET_QUERY = db.prepare<{ id: string }, [Uint8Array, Uint8Array]>(
+    "INSERT INTO datasets (creator_user_hash, payload) VALUES (?, ?) RETURNING id",
 );
-const GET_ALL_DATASETS = db.query<{ id: string; payload: Uint8Array }, []>(
-    "SELECT id, payload FROM datasets",
+const GET_ALL_DATASETS = db.query<{ id: string; payload: Uint8Array }, [Uint8Array]>(
+    "SELECT id, payload FROM datasets WHERE creator_user_hash = ?",
 );
-const FIND_DATASET_BY_ID_QUERY = db.query<{ payload: Uint8Array }, [string]>(
-    "SELECT payload FROM datasets WHERE id = ?",
+const FIND_DATASET_BY_ID_QUERY = db.query<{ payload: Uint8Array }, [Uint8Array, string]>(
+    "SELECT payload FROM datasets WHERE creator_user_hash = ? AND id = ?",
 );
-const UPDATE_DATASET_BY_ID_QUERY = db.prepare("UPDATE datasets SET payload = ? WHERE id = ?");
-const REMOVE_DATASET_BY_ID_QUERY = db.prepare("DELETE FROM datasets WHERE id = ?");
+const UPDATE_DATASET_BY_ID_QUERY = db.prepare(
+    "UPDATE datasets SET payload = ? WHERE creator_user_hash = ? AND id = ?",
+);
+const REMOVE_DATASET_BY_ID_QUERY = db.prepare(
+    "DELETE FROM datasets WHERE creator_user_hash = ? AND id = ?",
+);
 
 const ADD_DATASET_ROW_QUERY = db.prepare(
     "INSERT INTO dataset_rows (dataset_id, key_hash, payload) VALUES ($dataset_id, $key_hash, $payload)",
@@ -54,13 +58,17 @@ const REMOVE_DATASET_ROWS_BY_DATASET_ID_QUERY = db.prepare(
     "DELETE FROM dataset_rows WHERE dataset_id = ?",
 );
 
-export async function addDataset(dataset: DatasetPayload, rows?: DatasetRow[]) {
+export async function addDataset(
+    userHash: Uint8Array,
+    dataset: DatasetPayload,
+    rows?: DatasetRow[],
+) {
     try {
         const payload = await encryptData(JSON.stringify(dataset), key);
-        const row = ADD_DATASET_QUERY.get(payload);
+        const row = ADD_DATASET_QUERY.get(userHash, payload);
         if (!row) return null;
 
-        if (rows) await addDatasetRows(row.id, rows, dataset.key);
+        if (rows) await addDatasetRows(userHash, row.id, rows, dataset.key);
 
         return row.id;
     } catch {
@@ -69,6 +77,7 @@ export async function addDataset(dataset: DatasetPayload, rows?: DatasetRow[]) {
 }
 
 export async function addDatasetRows(
+    userHash: Uint8Array,
     datasetId: string,
     rows: DatasetRow[],
     datasetKey?: DatasetPayload["key"],
@@ -76,7 +85,7 @@ export async function addDatasetRows(
     try {
         if (rows.length === 0) return 0;
 
-        const _k = datasetKey || (await findDatasetById(datasetId))?.key;
+        const _k = datasetKey || (await findDatasetById(userHash, datasetId))?.key;
         if (!_k) return 0;
 
         const data: Parameters<typeof ADD_DATASET_ROWS_QUERY>[0] = new Array(rows.length);
@@ -95,9 +104,9 @@ export async function addDatasetRows(
     }
 }
 
-export async function getAllDatasets() {
+export async function getAllDatasets(userHash: Uint8Array) {
     try {
-        const rows = GET_ALL_DATASETS.all();
+        const rows = GET_ALL_DATASETS.all(userHash);
         return await Promise.all(
             rows.map(async (row) => ({
                 id: row.id,
@@ -109,9 +118,9 @@ export async function getAllDatasets() {
     }
 }
 
-export async function findDatasetById(id: string, withRows = false) {
+export async function findDatasetById(userHash: Uint8Array, id: string, withRows = false) {
     try {
-        const row = FIND_DATASET_BY_ID_QUERY.get(id);
+        const row = FIND_DATASET_BY_ID_QUERY.get(userHash, id);
         if (!row) return null;
 
         const res: DatasetWithRows | null = await decryptData<DatasetPayload>(row.payload, key);
@@ -172,8 +181,12 @@ export async function findDatasetRows(
     }
 }
 
-export async function updateDataset(id: string, datasetsPayload: Record<string, unknown>) {
-    const prev = await findDatasetById(id);
+export async function updateDataset(
+    userHash: Uint8Array,
+    id: string,
+    datasetsPayload: Record<string, unknown>,
+) {
+    const prev = await findDatasetById(userHash, id);
     if (!prev) return 0;
     for (const k in prev) {
         if (!Object.hasOwn(prev, k)) continue;
@@ -182,12 +195,12 @@ export async function updateDataset(id: string, datasetsPayload: Record<string, 
         prev[k as keyof typeof prev] = datasetsPayload[k] as any;
     }
     const payload = await encryptData(JSON.stringify(prev), key);
-    const { changes } = UPDATE_DATASET_BY_ID_QUERY.run(payload, id);
+    const { changes } = UPDATE_DATASET_BY_ID_QUERY.run(payload, userHash, id);
     return changes;
 }
 
-export function removeDatasetById(id: string) {
-    return REMOVE_DATASET_BY_ID_QUERY.run(id).changes > 0;
+export function removeDatasetById(userHash: Uint8Array, id: string) {
+    return REMOVE_DATASET_BY_ID_QUERY.run(userHash, id).changes > 0;
 }
 
 export function removeDatasetRows(datasetId: string, keyHash?: Uint8Array) {
