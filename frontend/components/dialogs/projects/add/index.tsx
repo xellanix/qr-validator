@@ -3,6 +3,7 @@ import { string } from "zod";
 import { useProjectStore } from "@/stores/project.store";
 import { MAX_STEP_INDEX, STEP_LIST } from "@/components/dialogs/projects/add/registry";
 import { StepBars } from "@/components/dialogs/projects/add/step-bar";
+import { disableCloseExceptButton } from "@/components/dialogs/shared";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -13,10 +14,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-
-const disableCloseExceptButton = (event: Event) => {
-    event.preventDefault();
-};
 
 export function NewProjectButton({ children }: { children?: React.ReactNode }) {
     return (

@@ -1,24 +1,11 @@
 import { ArrowDown01Icon, Delete03Icon, Edit03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
-import { useSocketStore } from "@/stores/socket.store";
-import { useCallbackLock } from "@/hooks/use-callback-lock";
-import { Footer } from "@/components/dialogs/projects/edit/footer";
-import { SidebarFrame } from "@/components/dialogs/projects/edit/frame";
-import { DialogSidebar } from "@/components/dialogs/projects/edit/sidebar";
+import { ProjectDeleteDialog } from "@/components/dialogs/projects/delete";
+import { ProjectEditDialog } from "@/components/dialogs/projects/edit";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,7 +13,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 export function ProjectMoreButton({ id }: { id: string }) {
     const [openDialog, setOpenDialog] = useState(false);
@@ -80,71 +66,5 @@ export function ProjectMoreButton({ id }: { id: string }) {
             </DropdownMenu>
             {dialogContent}
         </Dialog>
-    );
-}
-
-const disableCloseExceptButton = (event: Event) => {
-    event.preventDefault();
-};
-
-function ProjectEditDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => void }) {
-    return (
-        <DialogContent
-            showCloseButton={false}
-            className="overflow-hidden p-0 max-md:size-full max-md:max-w-full! md:h-[80dvh] md:max-h-[80dvh] md:max-w-[80dvw] lg:max-w-[90dvw]"
-            onEscapeKeyDown={disableCloseExceptButton}
-            onPointerDownOutside={disableCloseExceptButton}
-            onInteractOutside={disableCloseExceptButton}
-        >
-            <div className="flex flex-col overflow-hidden">
-                <DialogTitle className="absolute opacity-0 select-none">
-                    Project Configurations
-                </DialogTitle>
-                <SidebarProvider className="size-full min-h-0">
-                    <DialogSidebar />
-
-                    <SidebarFrame />
-                </SidebarProvider>
-                <Footer setOpenDialog={setOpenDialog} />
-            </div>
-        </DialogContent>
-    );
-}
-
-function ProjectDeleteDialog({ setOpenDialog }: { setOpenDialog: (v: boolean) => void }) {
-    const projectName = useProjectStore((s) => s.deleteId && s.projects[s.deleteId]?.name);
-
-    const { invoke, isLocked } = useCallbackLock(async () => {
-        const emitAck = useSocketStore.getState().emitAck<boolean>;
-        const res = await emitAck("client:project:delete", useProjectStore.getState().deleteId);
-        if (res === undefined) return;
-
-        setOpenDialog(false);
-
-        if (res) toast.success("Project deleted.");
-        else toast.error("Failed to delete project.");
-    });
-
-    return (
-        <DialogContent showCloseButton={false}>
-            <DialogHeader>
-                <DialogTitle>Delete Project</DialogTitle>
-                <DialogDescription>
-                    Are you sure you want to delete this project (
-                    <b className="font-semibold">{projectName}</b>)? This action cannot be undone.
-                </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="flex-row justify-end">
-                <DialogClose asChild>
-                    <Button variant="outline" disabled={isLocked}>
-                        Cancel
-                    </Button>
-                </DialogClose>
-                <Button type="submit" variant={"destructive"} onClick={invoke} disabled={isLocked}>
-                    Delete
-                </Button>
-            </DialogFooter>
-        </DialogContent>
     );
 }

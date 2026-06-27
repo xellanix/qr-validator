@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useProjectStore } from "@/stores/project.store";
-import { NAVIGATION_LOOKUP } from "@/components/dialogs/projects/registry";
+import { NAVIGATION_LOOKUP } from "@/components/dialogs/projects/edit/registry";
 import {
     Breadcrumb,
     BreadcrumbItem,

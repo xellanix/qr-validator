@@ -47,8 +47,8 @@ export const NAVIGATION_LOOKUP: Record<string, NavigationItem> = {
                 id: "3.1",
                 title: "Schema",
                 content: <InputSchemaPage />,
-            }
-        }
+            },
+        },
     },
 };
 export const NAVIGATION_LIST = Object.values(NAVIGATION_LOOKUP);
