@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 import type { DatasetPayload, DatasetRow, DatasetRowKey } from "~/types/dataset";
+import type { PresenceContent } from "~/types/generated-contents";
 import type { ProjectWithDataset } from "~/types/project";
 import type { ProjectItem, SchemaObjectSortable } from "@/types/project";
 import { string } from "zod";
@@ -10,6 +11,13 @@ import { UniqueIdGenerator } from "@/generators/uid";
 import { INPUT_SCHEMAS } from "@/registry/input-schema";
 
 type PartialKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+interface GeneratedContentsMetadata {
+    activePage: string;
+    projectId: string;
+    datasetKey: string;
+    presences: PresenceContent[];
+}
 
 interface EditMetadata {
     activePage: string;
@@ -39,6 +47,8 @@ interface ProjectState {
     } | null;
     edit: EditMetadata;
     deleteId: string | null;
+
+    generatedContents: GeneratedContentsMetadata | null;
 }
 
 interface ProjectActions {
@@ -173,6 +183,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         data: null,
     },
     deleteId: null,
+    generatedContents: null,
 
     init: (_projects, id = get().activeId) => {
         const projects = serverToFrontend(_projects);

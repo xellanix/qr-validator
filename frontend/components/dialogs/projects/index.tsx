@@ -1,9 +1,15 @@
-import { ArrowDown01Icon, Delete03Icon, Edit03Icon } from "@hugeicons/core-free-icons";
+import {
+    Archive02Icon,
+    ArrowDown01Icon,
+    Delete03Icon,
+    Edit03Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
 import { useProjectStore } from "@/stores/project.store";
 import { ProjectDeleteDialog } from "@/components/dialogs/projects/delete";
 import { ProjectEditDialog } from "@/components/dialogs/projects/edit";
+import { ProjectGeneratedContentsDialog } from "@/components/dialogs/projects/generated";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -16,15 +22,31 @@ import {
 
 export function ProjectMoreButton({ id }: { id: string }) {
     const [openDialog, setOpenDialog] = useState(false);
-    const [dialogType, setDialogType] = useState<"edit" | "delete">("edit");
+    const [dialogType, setDialogType] = useState<"generated" | "edit" | "delete">("edit");
 
     const dialogContent = useMemo(() => {
-        return dialogType === "edit" ? (
-            <ProjectEditDialog setOpenDialog={setOpenDialog} />
-        ) : (
-            <ProjectDeleteDialog setOpenDialog={setOpenDialog} />
-        );
+        switch (dialogType) {
+            case "delete":
+                return <ProjectDeleteDialog setOpenDialog={setOpenDialog} />;
+            case "edit":
+                return <ProjectEditDialog setOpenDialog={setOpenDialog} />;
+            case "generated":
+            default:
+                return <ProjectGeneratedContentsDialog setOpenDialog={setOpenDialog} />;
+        }
     }, [dialogType]);
+
+    const generatedContents = () => {
+        useProjectStore.setState((s) => ({
+            generatedContents: {
+                activePage: "1",
+                projectId: id,
+                datasetKey: s.projects[id].key,
+                presences: [],
+            },
+        }));
+        setDialogType("generated");
+    };
 
     const editProject = () => {
         useProjectStore.getState().startEdit(id);
@@ -45,6 +67,13 @@ export function ProjectMoreButton({ id }: { id: string }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="min-w-36" side="bottom" align="end">
+                    <DialogTrigger asChild>
+                        <DropdownMenuItem className="gap-2" onSelect={generatedContents}>
+                            <HugeiconsIcon icon={Archive02Icon} />
+                            Generated Contents
+                        </DropdownMenuItem>
+                    </DialogTrigger>
+                    <DropdownMenuSeparator />
                     <DialogTrigger asChild>
                         <DropdownMenuItem className="gap-2" onSelect={editProject}>
                             <HugeiconsIcon icon={Edit03Icon} />

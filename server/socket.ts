@@ -7,6 +7,7 @@ import { isTrulyLocal } from "$/lib/utils";
 import { TunnelManager } from "$/tunnel-manager";
 import { auth, setupSocketAuth } from "$/sockets/auth";
 import { dataset } from "$/sockets/dataset";
+import { generatedContents } from "$/sockets/generated-contents";
 import { history } from "$/sockets/history";
 import { project } from "$/sockets/project";
 import { report } from "$/sockets/report";
@@ -37,6 +38,7 @@ io.on("connection", (socket) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (socket.conn.transport as any).socket.remoteAddress,
     );
+    socket.data.isTrulyLocal = _isTrulyLocal;
     socket.emit("server:socket:device:info", {
         isTrulyLocal: _isTrulyLocal,
         name: hostname(),
@@ -44,6 +46,7 @@ io.on("connection", (socket) => {
     console.log("Device name:", hostname());
 
     auth(io, socket);
+    generatedContents(io, socket);
     project(io, socket);
     dataset(io, socket);
     history(io, socket);
@@ -104,6 +107,7 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         const str = `❌ Client disconnected: ${socket.id}`;
+        socket.data.isTrulyLocal = undefined;
         socket.data.user = undefined;
         socket.data.userHash = undefined;
         console.log(str);

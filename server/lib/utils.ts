@@ -1,7 +1,13 @@
 import type { IncomingMessage } from "node:http";
 import type { Archive, BlobPart } from "bun";
-import { createDecipheriv } from "crypto";
 import { rename } from "node:fs/promises";
+
+const ENCRYPTION_KEY = toNonSharedBytes(process.env.ENCRYPTION_KEY, 32, false);
+const _key = await crypto.subtle.importKey("raw", ENCRYPTION_KEY, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+]);
+const decoder = new TextDecoder();
 
 export function isTrulyLocal(req: IncomingMessage, ip?: string): boolean {
     const headers = req.headers;
@@ -32,23 +38,49 @@ export function isTrulyLocal(req: IncomingMessage, ip?: string): boolean {
     return !hasProxyHeader;
 }
 
-export function decrypt(token: string, _key: Uint8Array<ArrayBuffer>): string | null {
+export async function encryptData<AsString extends boolean = false>(
+    plainText: string,
+    key = _key,
+    asString: AsString = false as AsString,
+): Promise<AsString extends true ? string : Uint8Array> {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = Buffer.from(plainText, "utf-8");
+
+    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+
+    // Combine IV + Encrypted Data for storage
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    if (asString) return bytesToBase64(combined) as never;
+
+    return combined as never;
+}
+
+export async function decryptData(combined: Uint8Array | string, key = _key) {
     try {
-        const combined = Buffer.from(token, "base64");
+        if (typeof combined === "string") combined = base64ToBytes(combined);
 
-        // Extract the iv, authTag, and encrypted data from the combined buffer
-        const iv = combined.subarray(0, 16);
-        const authTag = combined.subarray(16, 32);
-        const encrypted = combined.subarray(32);
+        // Extract the 12-byte IV from the front
+        const iv = combined.slice(0, 12);
 
-        if (!iv || !authTag || !encrypted) return null;
+        // Extract the ciphertext (everything after the 12th byte)
+        const ciphertext = combined.slice(12);
 
-        const decipher = createDecipheriv("aes-256-gcm", _key, iv);
-        decipher.setAuthTag(authTag);
-        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-        return decrypted.toString("utf8");
-    } catch (error) {
-        console.error("Decryption failed:", error);
+        // Perform the decryption
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv },
+            key,
+            ciphertext,
+        );
+
+        // Convert the buffer back to a string
+        const plainText = decoder.decode(decryptedBuffer);
+        return plainText;
+    } catch {
+        // This will trigger if the key is wrong or the data was corrupted
+        console.error("Decryption failed! The key might be wrong or data is tampered with.");
         return null;
     }
 }
