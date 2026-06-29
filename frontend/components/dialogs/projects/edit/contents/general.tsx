@@ -3,7 +3,7 @@ import {
     FrameContainer,
     FrameDescription,
     FrameHeader,
-} from "@/components/dialogs/projects/edit/frame";
+} from "@/components/dialogs/projects/shared/frame";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
 

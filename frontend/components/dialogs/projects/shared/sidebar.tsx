@@ -1,8 +1,7 @@
-import type { NavigationItem } from "@/components/dialogs/projects/edit/registry";
+import type { NavigationItem } from "@/components/dialogs/projects/shared";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import { useProjectStore } from "@/stores/project.store";
-import { NAVIGATION_LIST } from "@/components/dialogs/projects/edit/registry";
 import {
     Sidebar,
     SidebarContent,
@@ -13,16 +12,14 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-export function DialogSidebar() {
-    const _navs = NAVIGATION_LIST;
-
+export function DialogSidebar({ navs }: { navs: NavigationItem[] }) {
     return (
         <Sidebar className="h-full">
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {_navs.map((nav) => (
+                            {navs.map((nav) => (
                                 <SidebarButton key={nav.id} nav={nav} />
                             ))}
                         </SidebarMenu>

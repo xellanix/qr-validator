@@ -1,13 +1,8 @@
 import { useMemo } from "react";
 import { useProjectStore } from "@/stores/project.store";
 import { NAVIGATION_LOOKUP } from "@/components/dialogs/projects/edit/registry";
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { BreadcrumbPair } from "@/components/dialogs/projects/shared/frame";
+import { Breadcrumb, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -67,30 +62,6 @@ function SidebarFrameBreadcrumb() {
     );
 }
 
-interface BreadcrumbPairProps {
-    index: number;
-    breadcrumb: React.ReactNode;
-    length: number;
-}
-function BreadcrumbPair({ index, breadcrumb, length }: BreadcrumbPairProps) {
-    const isLast = index === length - 1;
-
-    if (isLast) {
-        return (
-            <BreadcrumbItem>
-                <BreadcrumbPage>{breadcrumb}</BreadcrumbPage>
-            </BreadcrumbItem>
-        );
-    }
-
-    return (
-        <>
-            <BreadcrumbItem>{breadcrumb}</BreadcrumbItem>
-            <BreadcrumbSeparator />
-        </>
-    );
-}
-
 function SidebarFrameContent() {
     const content = useProjectStore((s) => {
         const levels = s.edit.activePage.split(".");
@@ -103,20 +74,4 @@ function SidebarFrameContent() {
         return item?.content;
     });
     return content;
-}
-
-interface FrameProps {
-    children: React.ReactNode;
-}
-
-export function FrameContainer({ children }: FrameProps) {
-    return <div className="flex flex-col gap-4 py-4">{children}</div>;
-}
-
-export function FrameHeader({ children }: FrameProps) {
-    return <div className="flex flex-col gap-2">{children}</div>;
-}
-
-export function FrameDescription({ children }: FrameProps) {
-    return <p className="text-muted-foreground text-sm">{children}</p>;
 }

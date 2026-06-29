@@ -1,4 +1,4 @@
-import type { IconSvgElement } from "@hugeicons/react";
+import type { NavigationLookup } from "@/components/dialogs/projects/shared";
 import { BinaryCodeIcon, DatabaseIcon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import {
     DatasetColumnsPage,
@@ -7,17 +7,7 @@ import {
 import { GeneralPage } from "@/components/dialogs/projects/edit/contents/general";
 import { InputPage, InputSchemaPage } from "@/components/dialogs/projects/edit/contents/input";
 
-type NavigationLookup = Record<string, NavigationItem>;
-
-export type NavigationItem = {
-    id: string;
-    title: string;
-    icon?: IconSvgElement;
-    content: React.ReactNode;
-    children?: NavigationLookup;
-};
-
-export const NAVIGATION_LOOKUP: Record<string, NavigationItem> = {
+export const NAVIGATION_LOOKUP: NavigationLookup = {
     "1": {
         id: "1",
         title: "General",

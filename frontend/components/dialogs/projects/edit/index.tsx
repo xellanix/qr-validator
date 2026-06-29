@@ -1,6 +1,7 @@
 import { Footer } from "@/components/dialogs/projects/edit/footer";
 import { SidebarFrame } from "@/components/dialogs/projects/edit/frame";
-import { DialogSidebar } from "@/components/dialogs/projects/edit/sidebar";
+import { NAVIGATION_LIST } from "@/components/dialogs/projects/edit/registry";
+import { DialogSidebar } from "@/components/dialogs/projects/shared/sidebar";
 import { disableCloseExceptButton } from "@/components/dialogs/shared";
 import { DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -19,7 +20,7 @@ export function ProjectEditDialog({ setOpenDialog }: { setOpenDialog: (v: boolea
                     Project Configurations
                 </DialogTitle>
                 <SidebarProvider className="size-full min-h-0">
-                    <DialogSidebar />
+                    <DialogSidebar navs={NAVIGATION_LIST} />
 
                     <SidebarFrame />
                 </SidebarProvider>

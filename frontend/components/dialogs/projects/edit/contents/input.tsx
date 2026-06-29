@@ -17,7 +17,7 @@ import {
     FrameContainer,
     FrameDescription,
     FrameHeader,
-} from "@/components/dialogs/projects/edit/frame";
+} from "@/components/dialogs/projects/shared/frame";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
     Breadcrumb,

@@ -9,7 +9,7 @@ import {
     FrameContainer,
     FrameDescription,
     FrameHeader,
-} from "@/components/dialogs/projects/edit/frame";
+} from "@/components/dialogs/projects/shared/frame";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
