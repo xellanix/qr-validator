@@ -6,11 +6,7 @@ import { disableCloseExceptButton } from "@/components/dialogs/shared";
 import { DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
-export function ProjectGeneratedContentsDialog({
-    setOpenDialog,
-}: {
-    setOpenDialog: (v: boolean) => void;
-}) {
+export function ProjectGeneratedContentsDialog() {
     return (
         <DialogContent
             showCloseButton={false}
@@ -28,7 +24,7 @@ export function ProjectGeneratedContentsDialog({
 
                     <SidebarFrame />
                 </SidebarProvider>
-                <Footer setOpenDialog={setOpenDialog} />
+                <Footer />
             </div>
         </DialogContent>
     );

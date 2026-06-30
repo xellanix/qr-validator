@@ -1,14 +1,8 @@
-import { useCallback } from "react";
 import { useProjectStore } from "@/stores/project.store";
-import { DefaultFooter, OnlyBackFooter } from "@/components/dialogs/projects/shared/footer";
+import { OnlyBackFooter, OnlyCloseFooter } from "@/components/dialogs/projects/shared/footer";
 
-export function Footer({ setOpenDialog }: { setOpenDialog: (v: boolean) => void }) {
+export function Footer() {
     const activePage = useProjectStore((s) => s.generatedContents?.activePage);
-
-    const save = useCallback(() => {
-        // useProjectStore.getState().applyEdit();
-        setOpenDialog(false);
-    }, [setOpenDialog]);
 
     if (!activePage) return null;
 
@@ -35,9 +29,6 @@ export function Footer({ setOpenDialog }: { setOpenDialog: (v: boolean) => void 
     }
 
     return (
-        <DefaultFooter
-            onCancel={() => useProjectStore.setState({ generatedContents: null })}
-            onSave={save}
-        />
+        <OnlyCloseFooter onCancel={() => useProjectStore.setState({ generatedContents: null })} />
     );
 }

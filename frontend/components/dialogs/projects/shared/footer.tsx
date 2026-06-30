@@ -28,3 +28,15 @@ export function OnlyBackFooter({ onBack }: OnlyBackFooterProps) {
         </DialogFooter>
     );
 }
+
+export function OnlyCloseFooter({ onCancel }: Pick<FooterProps, "onCancel">) {
+    return (
+        <DialogFooter className="flex-row justify-end p-6">
+            <DialogClose asChild>
+                <Button variant={"outline"} onClick={onCancel}>
+                    Close
+                </Button>
+            </DialogClose>
+        </DialogFooter>
+    );
+}

@@ -32,7 +32,7 @@ export function ProjectMoreButton({ id }: { id: string }) {
                 return <ProjectEditDialog setOpenDialog={setOpenDialog} />;
             case "generated":
             default:
-                return <ProjectGeneratedContentsDialog setOpenDialog={setOpenDialog} />;
+                return <ProjectGeneratedContentsDialog />;
         }
     }, [dialogType]);
 
