@@ -112,7 +112,7 @@ function AssignedUsersItem({ name, authorizeLevel, index }: User & { index: numb
             </ItemContent>
             <ItemActions>
                 <Select value={authorizeLevel?.toString()} onValueChange={roleChanged}>
-                    <SelectTrigger size="sm" className="w-24">
+                    <SelectTrigger size="sm" className="w-32">
                         <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
