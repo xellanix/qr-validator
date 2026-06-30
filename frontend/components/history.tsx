@@ -85,8 +85,7 @@ export function HistoryView() {
             <div className="flex-1 overflow-hidden rounded-4xl border">
                 <Table>
                     <TableHeader className="sticky top-0 bg-card">
-                        <div className="w-full bg-input/30 -z-10 absolute size-full" />
-                        <TableRow>
+                        <TableRow className="relative after:absolute after:inset-0 after:bg-input/30 after:-z-10">
                             <TableHead>{inputDataKey}</TableHead>
                             <TableHead>Validator</TableHead>
                             <TableHead>Validated At</TableHead>
