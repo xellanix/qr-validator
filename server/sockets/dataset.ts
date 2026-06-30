@@ -35,7 +35,7 @@ export function dataset(io: FinalServer, socket: FinalSocket) {
                 return callback({ status: "error", error: `Dataset (${datasetId}) not found.` });
 
             const user = socket.data.user;
-            if (!user || !getPermissions(user.authorizeLevel).canAccessConsole) {
+            if (!user || !getPermissions(user.authorizeLevel).isUseDataset) {
                 return callback({
                     status: "error",
                     error: `Unauthorized fetch all attempt by user: ${user?.name}`,

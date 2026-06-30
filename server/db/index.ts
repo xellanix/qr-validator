@@ -62,6 +62,22 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 CREATE INDEX IF NOT EXISTS idx_project_dataset_id ON projects (dataset_id);
 CREATE INDEX IF NOT EXISTS idx_project_user_hash ON projects (creator_user_hash);
+
+CREATE TABLE IF NOT EXISTS project_users (
+    project_id TEXT NOT NULL,
+    user_hash BLOB NOT NULL,
+    PRIMARY KEY (project_id, user_hash),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
+);
+
+CREATE TRIGGER IF NOT EXISTS cleanup_orphaned_users
+    AFTER DELETE ON project_users
+    BEGIN
+        DELETE FROM users
+        WHERE user_hash = OLD.user_hash
+        AND NOT EXISTS (SELECT 1 FROM project_users WHERE user_hash = OLD.user_hash);
+    END;
 `,
 );
 

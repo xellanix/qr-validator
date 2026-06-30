@@ -1,4 +1,5 @@
 import type { CachedDataset } from "~/types/dataset";
+import type { User } from "~/types/user";
 
 export type SchemaObject = {
     type: string;
@@ -14,6 +15,8 @@ export type Project = {
     datasetId: string | null | undefined;
     /** The schema objects used for editing the {@link schema}. */
     schemaObjects: SchemaObject[];
+    /** The users that have access to this project */
+    users: User[];
 };
 
 export type ProjectWithDataset = Project & CachedDataset;

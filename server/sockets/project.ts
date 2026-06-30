@@ -10,6 +10,8 @@ import {
     removeProjectById,
     updateProject,
 } from "$/db/project";
+import { getProjectCreatorForUser } from "$/db/user";
+import { bytesToBase64 } from "$/lib/utils";
 import { getPermissions } from "@/lib/permission";
 
 type InitOptions = {
@@ -57,6 +59,18 @@ const isEmptyRecord = <T>(obj: Record<string, T>) => {
     return true;
 };
 
+const initiator = async (
+    activeId: string | null,
+    creator: NonNullable<FinalSocket["data"]["userHash"]>,
+    opt: InitOptions,
+) => {
+    const res: Record<string, unknown> = {};
+    if (opt.activation) res.activeId = activeId;
+    if (opt.projects) res.projects = await fetchProjects(creator.bytes, activeId, opt.all);
+
+    return res;
+};
+
 export function project(io: FinalServer, socket: FinalSocket) {
     socket.on("client:project:init", async (opt: InitOptions) => {
         const { user, userHash } = socket.data;
@@ -70,17 +84,27 @@ export function project(io: FinalServer, socket: FinalSocket) {
             );
         }
 
+        let creator = userHash;
+        let activeId: string | null = null;
         if (opt.all) {
             void socket.join(userHash.base64);
         } else {
-            void socket.join(`${userHash.base64}-children`);
+            const c = getProjectCreatorForUser(userHash.bytes);
+            const cHash = c?.creator_user_hash
+                ? bytesToBase64(c.creator_user_hash)
+                : userHash.base64;
+            creator = { bytes: c?.creator_user_hash ?? userHash.bytes, base64: cHash };
+
+            activeId = activeIds[cHash] ?? null;
+            const projectId = c?.project_id;
+            if (!projectId || activeId !== projectId) {
+                activeId = null;
+            }
+
+            if (projectId) void socket.join(`${cHash}-${projectId}-children`);
         }
 
-        const res: Record<string, unknown> = {};
-        const activeId = activeIds[userHash.base64] ?? null;
-        if (opt.activation) res.activeId = activeId;
-        if (opt.projects) res.projects = await fetchProjects(userHash.bytes, activeId, opt.all);
-
+        const res = await initiator(activeId, creator, opt);
         socket.emit("server:project:init", res);
     });
 
@@ -98,8 +122,14 @@ export function project(io: FinalServer, socket: FinalSocket) {
                 );
             }
 
-            const { name, datasetId, schemaObjects } = project;
-            const projectId = addProject(userHash.bytes, datasetId, name, schemaObjects);
+            const { name, datasetId, schemaObjects, users } = project;
+            const projectId = await addProject(
+                userHash.bytes,
+                datasetId,
+                name,
+                schemaObjects,
+                users,
+            );
             const success = !!projectId;
             const res = success
                 ? ({
@@ -110,6 +140,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
                       key: forward.key,
                       keyLabel: forward.keyLabel,
                       schemaObjects,
+                      users,
                   } as Omit<ProjectWithDataset, "columnKeys">)
                 : null;
             io.to(userHash.base64).emit("server:project:add", res, success);
@@ -134,12 +165,16 @@ export function project(io: FinalServer, socket: FinalSocket) {
             }
 
             if (!isEmptyRecord(projectsPayload)) {
-                const copied = { ...projectsPayload } as Record<string, any>;
-                if ("schemaObjects" in copied) {
+                const { users, schemaObjects, ...rest } = projectsPayload;
+                const copied = {
+                    ...rest,
+                    ...(schemaObjects && { schemaObjects: { ...schemaObjects } }),
+                };
+                if (copied.schemaObjects) {
                     // @ts-expect-error - Suppressing implicit any until refactoring
                     copied.schemaObjects = copied.schemaObjects.map(({ sortId, ...rest }) => rest);
                 }
-                changes = updateProject(userHash.bytes, id, camelToSnakeCase(copied));
+                changes = await updateProject(userHash.bytes, id, camelToSnakeCase(copied), users);
             }
 
             const project = { ...projectsPayload, ...datasetsPayload };
@@ -150,7 +185,11 @@ export function project(io: FinalServer, socket: FinalSocket) {
             socket.emit("server:project:update", id, project, true); // Send the update result back to the updater (client)
             socket.to(userHash.base64).emit("server:project:update", id, project);
             if (id === activeIds[userHash.base64]) {
-                io.to(`${userHash.base64}-children`).emit("server:project:update", id, project);
+                io.to(`${userHash.base64}-${id}-children`).emit(
+                    "server:project:update",
+                    id,
+                    project,
+                );
             }
         },
     );
@@ -169,7 +208,7 @@ export function project(io: FinalServer, socket: FinalSocket) {
             let rooms = io.to(userHash.base64);
             if (id === activeIds[userHash.base64]) {
                 delete activeIds[userHash.base64];
-                rooms = rooms.to(`${userHash.base64}-children`);
+                rooms = rooms.to(`${userHash.base64}-${id}-children`);
             }
             rooms.emit("server:project:delete", id);
         }
@@ -184,10 +223,20 @@ export function project(io: FinalServer, socket: FinalSocket) {
                 `Unauthorized activation toggle attempt by user: ${user?.name}`,
             );
         }
+
+        const prevActiveId = activeIds[userHash.base64];
         const activeId = (checked && id) || null;
         activeIds[userHash.base64] = activeId;
+
         io.to(userHash.base64)
-            .to(`${userHash.base64}-children`)
+            .to(`${userHash.base64}-${id}-children`)
             .emit("server:project:activation:toggle", activeId);
+
+        if (prevActiveId != null) {
+            io.to(`${userHash.base64}-${prevActiveId}-children`).emit(
+                "server:project:activation:toggle",
+                null,
+            );
+        }
     });
 }

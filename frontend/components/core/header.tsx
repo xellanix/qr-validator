@@ -1,3 +1,4 @@
+import { getUserRole } from "@/lib/user";
 import { useProjectStore } from "@/stores/project.store";
 import { useUserStore } from "@/stores/user.store";
 import { LogoutButton } from "@/components/auth";
@@ -30,7 +31,7 @@ function UserSection() {
         <div className="flex items-center gap-4">
             <div className="text-right">
                 <p className="font-semibold">{user.name}</p>
-                <p className="text-sm text-gray-500">Level {user.authorizeLevel}</p>
+                <p className="text-sm text-gray-500">{getUserRole(user.authorizeLevel)}</p>
             </div>
             <LogoutButton />
         </div>

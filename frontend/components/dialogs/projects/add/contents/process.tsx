@@ -23,7 +23,7 @@ const quickError = (err: string) => {
     });
 };
 
-export function Step6() {
+export function ProcessSection() {
     const isProcessing = useRef(false);
 
     useEffect(() => {
@@ -73,6 +73,7 @@ export function Step6() {
                     datasetId,
                     name: data.name,
                     schemaObjects: data.schemaObjects.map(({ sortId, ...rest }) => rest),
+                    users: data.users,
                 },
                 datasetPayload,
             );

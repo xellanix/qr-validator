@@ -1,11 +1,17 @@
 import type { NavigationLookup } from "@/components/dialogs/projects/shared";
-import { BinaryCodeIcon, DatabaseIcon, InformationCircleIcon } from "@hugeicons/core-free-icons";
+import {
+    BinaryCodeIcon,
+    DatabaseIcon,
+    InformationCircleIcon,
+    UserGroupIcon,
+} from "@hugeicons/core-free-icons";
 import {
     DatasetColumnsPage,
     DatasetPage,
 } from "@/components/dialogs/projects/edit/contents/dataset";
 import { GeneralPage } from "@/components/dialogs/projects/edit/contents/general";
 import { InputPage, InputSchemaPage } from "@/components/dialogs/projects/edit/contents/input";
+import { AssignedUsersPage } from "@/components/dialogs/projects/edit/contents/users";
 
 export const NAVIGATION_LOOKUP: NavigationLookup = {
     "1": {
@@ -39,6 +45,12 @@ export const NAVIGATION_LOOKUP: NavigationLookup = {
                 content: <InputSchemaPage />,
             },
         },
+    },
+    "4": {
+        id: "4",
+        title: "Assigned Users",
+        icon: UserGroupIcon,
+        content: <AssignedUsersPage />,
     },
 };
 export const NAVIGATION_LIST = Object.values(NAVIGATION_LOOKUP);

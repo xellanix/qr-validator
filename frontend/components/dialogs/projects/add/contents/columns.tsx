@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-export function Step3() {
+export function ColumnsSection() {
     const fromDropdown = useProjectStore((s) => s.newProject?.data?.datasetId !== "uploaded");
 
     return (

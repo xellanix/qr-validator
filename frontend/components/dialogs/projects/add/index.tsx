@@ -34,6 +34,7 @@ export function NewProjectButton({ children }: { children?: React.ReactNode }) {
                                   columnKeys: [],
                                   schemaObjects: [],
                                   schema: string(),
+                                  users: [],
                               },
                               nextHandler: [],
                               uploadedDataset: null,

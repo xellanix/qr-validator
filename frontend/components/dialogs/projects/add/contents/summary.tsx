@@ -1,7 +1,8 @@
 import type { DataContentType } from "~/types/dataset";
 import { useProjectStore } from "@/stores/project.store";
-import { DatasetSourceLabel } from "@/components/dialogs/projects/add/contents/step-2";
-import { ActiveSchemasFlow } from "@/components/dialogs/projects/add/contents/step-4";
+import { DatasetSourceLabel } from "@/components/dialogs/projects/add/contents/data-source";
+import { ActiveSchemasFlow } from "@/components/dialogs/projects/add/contents/input-schema";
+import { ReadOnlyAssignedUsers } from "@/components/dialogs/projects/add/contents/users";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 const camelToCapitalCase = (str: string) => {
@@ -26,7 +27,7 @@ const mapper = (record: DataContentType) => {
     return [str, (maxLength + 1).toString(10)];
 };
 
-export function Step5() {
+export function SummarySection() {
     const newProject = useProjectStore((s) => s.newProject);
     if (!newProject?.data) return null;
 
@@ -83,6 +84,15 @@ export function Step5() {
                     </ItemContent>
                 </Item>
                 <ActiveSchemasFlow />
+            </ItemGroup>
+
+            <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
+                <Item variant={"outline"}>
+                    <ItemContent>
+                        <ItemTitle>Assigned Users</ItemTitle>
+                    </ItemContent>
+                </Item>
+                <ReadOnlyAssignedUsers />
             </ItemGroup>
         </>
     );

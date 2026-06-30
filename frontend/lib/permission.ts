@@ -16,11 +16,11 @@ export function getPermissions(level: User["authorizeLevel"]) {
     // Read-Write
     if (level >= 1) {
         permissions.canScan = true;
-        permissions.isUseDataset = true;
     }
 
     // Read-Write-Generate
     if (level >= 2) {
+        permissions.isUseDataset = true;
         permissions.canReport = true;
         permissions.canDelete = true;
     }

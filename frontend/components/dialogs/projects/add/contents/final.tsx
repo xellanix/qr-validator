@@ -19,7 +19,7 @@ const STATE = {
     },
 } as const;
 
-export function Step7() {
+export function FinalSection() {
     const isSuccess = useProjectStore(
         (s) => s.newProject?.isSuccess ?? "New project is not created.",
     );

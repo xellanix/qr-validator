@@ -29,7 +29,7 @@ import {
     ItemTitle,
 } from "@/components/ui/item";
 
-export function Step2() {
+export function DataSourceSection() {
     return (
         <>
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0">

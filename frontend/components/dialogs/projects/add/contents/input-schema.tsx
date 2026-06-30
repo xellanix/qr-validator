@@ -53,7 +53,7 @@ import {
 import { UniqueIdGenerator } from "@/generators/uid";
 import { INPUT_SCHEMAS } from "@/registry/input-schema";
 
-export function Step4() {
+export function InputSchemaSection() {
     return (
         <>
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0">

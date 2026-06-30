@@ -144,7 +144,7 @@ const serverToFrontend = (projects: Record<string, ProjectWithDataset>) => {
 };
 
 const updateServerProject = (project: ProjectItem, prev: ProjectItem) => {
-    const projectsKeys: (keyof ProjectItem)[] = ["name", "datasetId", "schemaObjects"];
+    const projectsKeys: (keyof ProjectItem)[] = ["name", "datasetId", "schemaObjects", "users"];
     const datasetsKeys: (keyof ProjectItem)[] = ["key", "keyLabel", "columns"];
 
     const projectsPayload: Record<string, unknown> = {};

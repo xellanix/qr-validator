@@ -3,7 +3,7 @@ import { useProjectStore } from "@/stores/project.store";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
 
-export function Step1() {
+export function ProjectDetailsSection() {
     return (
         <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0">
             <Item variant={"outline"}>

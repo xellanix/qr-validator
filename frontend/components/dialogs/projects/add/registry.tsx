@@ -1,50 +1,56 @@
-import { Step1 } from "@/components/dialogs/projects/add/contents/step-1";
-import { Step2 } from "@/components/dialogs/projects/add/contents/step-2";
-import { Step3 } from "@/components/dialogs/projects/add/contents/step-3";
-import { Step4 } from "@/components/dialogs/projects/add/contents/step-4";
-import { Step5 } from "@/components/dialogs/projects/add/contents/step-5";
-import { Step6 } from "@/components/dialogs/projects/add/contents/step-6";
-import { Step7 } from "@/components/dialogs/projects/add/contents/step-7";
+import { ColumnsSection } from "@/components/dialogs/projects/add/contents/columns";
+import { DataSourceSection } from "@/components/dialogs/projects/add/contents/data-source";
+import { FinalSection } from "@/components/dialogs/projects/add/contents/final";
+import { InputSchemaSection } from "@/components/dialogs/projects/add/contents/input-schema";
+import { ProcessSection } from "@/components/dialogs/projects/add/contents/process";
+import { ProjectDetailsSection } from "@/components/dialogs/projects/add/contents/project-details";
+import { SummarySection } from "@/components/dialogs/projects/add/contents/summary";
+import { AssignUsersSection } from "@/components/dialogs/projects/add/contents/users";
 
 export const STEP_LIST = [
     {
         id: "1",
         title: "Enter Project Details",
-        content: <Step1 />,
+        content: <ProjectDetailsSection />,
     },
     {
         id: "2",
         title: "Connect Data Source",
-        content: <Step2 />,
+        content: <DataSourceSection />,
     },
     {
         id: "3",
         title: "Map & Verify Columns",
-        content: <Step3 />,
+        content: <ColumnsSection />,
     },
     {
         id: "4",
         title: "Define Input Schema",
-        content: <Step4 />,
+        content: <InputSchemaSection />,
         isOptional: true,
     },
     {
         id: "5",
-        title: "Review Summary",
-        content: <Step5 />,
-        nextButton: "Process",
+        title: "Assign Operators & Users",
+        content: <AssignUsersSection />,
     },
     {
         id: "6",
+        title: "Review Summary",
+        content: <SummarySection />,
+        nextButton: "Process",
+    },
+    {
+        id: "7",
         title: "Processing Data",
-        content: <Step6 />,
+        content: <ProcessSection />,
         nextButton: 1,
         prevButton: 1,
     },
     {
-        id: "7",
+        id: "8",
         title: "",
-        content: <Step7 />,
+        content: <FinalSection />,
         nextButton: 0,
         prevButton: 1,
     },
