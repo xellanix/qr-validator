@@ -23,7 +23,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -74,7 +74,7 @@ jobs:
     if: needs.extract_version.outputs.skip == 'false'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
 
@@ -83,20 +83,39 @@ jobs:
         with:
           bun-version: 1.3.12
 
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'server/go.mod'
+          cache: true
+      
+      - name: Set up GCC (MinGW) for CGO
+        shell: bash
+        run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+
       - name: Install Dependencies
         shell: bash
-        run: bun install
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          bun install
+
+          cd server
+          go mod download
 
       - name: Build App
         shell: bash
+        env:
+          CGO_ENABLED: 1
         run: |
           bun run build
+          go run server/build/build.go
 
           # Rename the package for the specific platform
           mv "./dist/server/premark.exe" "./dist/premark-windows-x64.exe"
       
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-binary
           path: ./dist/*.exe
@@ -105,10 +124,10 @@ jobs:
     needs: [extract_version, build_app]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-binary
           path: ./dist
