@@ -24,13 +24,12 @@ export default defineConfig({
     build: {
         minify: true,
         assetsInlineLimit: 0,
-        outDir: "dist/frontend",
+        outDir: "server/dist/frontend",
         modulePreload: false
     },
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./frontend"),
-            $: path.resolve(__dirname, "./server"),
             "#": path.resolve(__dirname, "./"),
         },
     },

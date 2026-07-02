@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useProjectStore } from "@/stores/project.store";
+import { useSocketStore } from "@/stores/socket.store";
 import { useUserStore } from "@/stores/user.store";
 import { ActiveProject, AllProjects } from "@/components/console";
 import { NewProjectButton } from "@/components/dialogs/projects/add";
@@ -33,6 +34,15 @@ function ConsolePageContent() {
         else if (!isDialogOpen) startedFromEmpty.current = false;
         return noProjects || startedFromEmpty.current;
     });
+
+    useEffect(() => {
+        const noProjects = isEmptyRecord(useProjectStore.getState().projects);
+        if (!noProjects) return;
+
+        const fetchAll = useUserStore.getState().hasConsoleAccess();
+        const { emit } = useSocketStore.getState();
+        emit("client:project:init", { activation: true, projects: true, all: fetchAll });
+    }, []);
 
     if (isEmpty) {
         return (

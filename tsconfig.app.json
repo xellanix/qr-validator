@@ -27,7 +27,6 @@
         /* Import paths */
         "paths": {
             "@/*": ["./frontend/*"],
-            "$/*": ["./server/*"],
             "~/*": ["./shared/*"],
             "#/*": ["./*"]
         }

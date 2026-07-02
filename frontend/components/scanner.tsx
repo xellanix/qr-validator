@@ -213,7 +213,7 @@ export function ScannerView() {
     }
 
     return (
-        <div className="flex flex-col items-center gap-4 size-full">
+        <div className="flex flex-col items-center justify-center gap-4 size-full">
             <div className="flex aspect-square w-full max-w-sm items-center justify-center overflow-hidden rounded-lg border-2 border-input border-dashed bg-muted">
                 <video
                     ref={videoRef}
