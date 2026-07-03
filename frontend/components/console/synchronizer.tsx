@@ -1,0 +1,85 @@
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { useProjectStore } from "@/stores/project.store";
+import { useSocketStore } from "@/stores/socket.store";
+import { useUserStore } from "@/stores/user.store";
+import { MAX_STEP_INDEX } from "@/components/dialogs/projects/add/registry";
+import { UniqueIdGenerator } from "@/generators/uid";
+
+export function Synchronizer() {
+    const socket = useSocketStore((s) => s.socket);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const { emit, on } = useSocketStore.getState();
+
+        const fetchAll = useUserStore.getState().hasConsoleAccess();
+        emit("client:project:init", { activation: true, projects: true, all: fetchAll });
+
+        const [errorOff] = on("server:response:error", (error) => toast.error(error));
+
+        const [initOff] = on("server:project:init", ({ status, error, activeId, projects }) => {
+            if (status === "error") return toast.error(error);
+            void useProjectStore.getState().init(projects, activeId);
+        });
+        const [addOff] = on("server:project:add", (project, success: boolean) => {
+            if (!fetchAll) return;
+
+            if (success) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                project.schemaObjects = project.schemaObjects.map((o: any) => ({
+                    ...o,
+                    sortId: UniqueIdGenerator.nextNumeric(),
+                }));
+                void useProjectStore.getState().add(project);
+            }
+
+            useProjectStore.setState((prev) => {
+                const p = prev.newProject;
+                if (!p) return prev;
+
+                const activePageIndex = Math.min(
+                    Math.max(0, p.activePageIndex + 1),
+                    MAX_STEP_INDEX,
+                );
+
+                let isSuccess = p.isSuccess;
+                if (!success) {
+                    const msg = "Unknown error occurred while creating project.";
+                    if (typeof isSuccess === "string") {
+                        isSuccess += "\n\n" + msg;
+                    } else {
+                        isSuccess = msg;
+                    }
+                }
+
+                return { newProject: { ...p, activePageIndex, isSuccess } };
+            });
+        });
+        const [updateOff] = on("server:project:update", (id, project, success) => {
+            if (success === true) toast.success("Project updated.");
+            void useProjectStore.getState().update(id, project);
+        });
+        const [deleteOff] = on("server:project:delete", (id: string) => {
+            useProjectStore.getState().delete(id);
+        });
+        const [toggleOff] = on("server:project:activation:toggle", (activeId) => {
+            if (!fetchAll) {
+                return emit("client:project:init", { activation: true, projects: true });
+            }
+            void useProjectStore.getState().toggleActivation(activeId);
+        });
+
+        return () => {
+            errorOff();
+            initOff();
+            addOff();
+            updateOff();
+            deleteOff();
+            toggleOff();
+        };
+    }, [socket]);
+
+    return null;
+}

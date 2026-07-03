@@ -11,7 +11,7 @@
    <BLANK LINE>
    `[BREAKING CHANGE: footer]`
 
-   - **Types**: `feat`, `fix`, `refactor`, `style`, `docs`, `test`, `chore`, `ci`, `build`, `revert`.
+   - **Types**: `feat`, `fix`, `refactor`, `style`, `docs`, `test`, `chore`, `ci`, `build`, `revert`, `perf`.
    - **Subject**: Use the imperative mood ("add" not "added"), max 50 characters, no period at the end.
 
 3. **Body Formulation**:
@@ -31,6 +31,10 @@
    - `packages`: packages (deps) related
    - `github-actions`: CI/CD workflows
    - `about`: about page
+   - `security`: security
+   - `app`: app related
+   - `console`: console related
+   - `project`: project (store) related
 
    **Note on Scopes**: 
    - If the change doesn't fit the map or is too generic, leave the scope empty: `type: subject`.
