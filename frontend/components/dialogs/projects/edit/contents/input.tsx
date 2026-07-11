@@ -63,7 +63,10 @@ export function InputPage() {
     return (
         <FrameContainer>
             <FrameHeader>
-                <FrameDescription>This page is</FrameDescription>
+                <FrameDescription>
+                    Configure the behavior, security, and validation characteristics for incoming
+                    data payloads.
+                </FrameDescription>
             </FrameHeader>
 
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">

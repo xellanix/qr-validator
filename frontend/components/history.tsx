@@ -25,7 +25,7 @@ export function Synchronizer() {
         if (!socket) return;
 
         const update = (updatedHistory: ScanEntry[]) => {
-            useHistoryStore.getState().setEntries(updatedHistory);
+            useHistoryStore.getState().setEntries(updatedHistory ?? []);
         };
         socket.emit("client:history:init");
         socket.on("server:history:update", update);

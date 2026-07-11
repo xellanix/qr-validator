@@ -3,6 +3,7 @@ package sockets
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"premark/db"
 	"premark/lib"
 	"premark/types"
@@ -212,12 +213,8 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		}
 
 		mergedResult := make(map[string]any)
-		for k, v := range projectsPayload {
-			mergedResult[k] = v
-		}
-		for k, v := range datasetsPayload {
-			mergedResult[k] = v
-		}
+		maps.Copy(mergedResult, projectsPayload)
+		maps.Copy(mergedResult, datasetsPayload)
 
 		client.Emit("server:project:update", id, mergedResult, true)
 		client.To(socket.Room(ctx.UserHashBase64)).Emit("server:project:update", id, mergedResult)
