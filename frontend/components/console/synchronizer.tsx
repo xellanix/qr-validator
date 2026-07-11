@@ -19,8 +19,7 @@ export function Synchronizer() {
 
         const [errorOff] = on("server:response:error", (error) => toast.error(error));
 
-        const [initOff] = on("server:project:init", ({ status, error, activeId, projects }) => {
-            if (status === "error") return toast.error(error);
+        const [initOff] = on("server:project:init", ({ activeId, projects }) => {
             void useProjectStore.getState().init(projects, activeId);
         });
         const [addOff] = on("server:project:add", (project, success: boolean) => {
