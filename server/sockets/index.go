@@ -5,6 +5,7 @@ import (
 	"os"
 	"premark/constants"
 	"premark/types"
+	"regexp"
 
 	"github.com/zishang520/socket.io/servers/engine/v3/transports"
 	"github.com/zishang520/socket.io/servers/socket/v3"
@@ -21,12 +22,18 @@ func InitSocketServer() *socket.Server {
 	io.Opts().SetPath("/api/socket_io/")
 	io.Opts().SetTransports(io_types.NewSet[transports.TransportCtor](&transports.WebSocketBuilder{}))
 
-	var origin string
-	if !constants.IS_PROD {
-		origin = "http://localhost:" + constants.FRONTEND_PORT
+	origin := func(origin string) bool {
+		if !constants.IS_PROD {
+			return origin == "http://localhost:"+constants.FRONTEND_PORT
+		}
 
-	} else {
-		origin = "http://localhost:" + constants.SERVER_PORT
+		if origin == "http://localhost:"+constants.SERVER_PORT {
+			return true
+		} else if valid, _ := regexp.MatchString(`^https://[a-z0-9-]+\.trycloudflare\.com$`, origin); valid {
+			return true
+		} else {
+			return false
+		}
 	}
 	io.Opts().SetCors(&io_types.Cors{
 		Origin:      origin,
