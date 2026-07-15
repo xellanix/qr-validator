@@ -55,23 +55,6 @@ func executeQRGeneration(value string, projectID string) bool {
 }
 
 func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
-	client.On("client:presence:path", func(args ...any) {
-		if len(args) < 1 {
-			return
-		}
-		projectID, _ := args[0].(string)
-		trimmed := strings.TrimSpace(projectID)
-		if trimmed == "" {
-			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
-			return
-		}
-
-		ctx := client.Data().(*types.SocketData)
-		if ctx.IsTrulyLocal {
-			client.Emit("server:presence:path", persist.PublicDir("output", "presence", trimmed))
-		}
-	})
-
 	client.On("client:presence:fetch", func(args ...any) {
 		if len(args) < 3 {
 			return

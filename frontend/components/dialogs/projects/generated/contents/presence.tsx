@@ -2,7 +2,7 @@ import type { PresenceContent } from "~/types/generated-contents";
 import type { ProjectItem } from "@/types/project";
 import { Idea01Icon, Refresh01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useProjectStore } from "@/stores/project.store";
@@ -96,21 +96,9 @@ export function PresencePage() {
 }
 
 function FilesLocation() {
-    const [path, setPath] = useState("");
-    useEffect(() => {
-        const { emit, on } = useSocketStore.getState();
-        const c = useProjectStore.getState().generatedContents;
-        if (!c) return;
-        emit("client:presence:path", c.projectId);
-
-        const [off] = on("server:presence:path", (data) => {
-            setPath(data);
-        });
-
-        return () => {
-            off();
-        };
-    }, []);
+    const path = useProjectStore(({ generatedContents }) =>
+        generatedContents ? "/output/presence/" + generatedContents.projectId : null,
+    );
 
     if (!path) return null;
 
@@ -118,7 +106,9 @@ function FilesLocation() {
         <Alert>
             <HugeiconsIcon icon={Idea01Icon} strokeWidth={1.75} />
             <AlertDescription className="text-wrap">
-                The generated presence QR files are stored in the <code>{path}</code>
+                The generated presence QR files are stored in{" "}
+                <code className="font-mono font-semibold">{path}</code> in the root directory of the
+                app.
             </AlertDescription>
         </Alert>
     );
