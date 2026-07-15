@@ -2,7 +2,7 @@ import type { PresenceContent } from "~/types/generated-contents";
 import type { ProjectItem } from "@/types/project";
 import { Idea01Icon, Refresh01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useProjectStore } from "@/stores/project.store";
@@ -96,19 +96,9 @@ export function PresencePage() {
 }
 
 function FilesLocation() {
-    const [path, setPath] = useState("");
-    useEffect(() => {
-        const { emit, on } = useSocketStore.getState();
-        emit("client:presence:path");
-
-        const [off] = on("server:presence:path", (data) => {
-            setPath(data);
-        });
-
-        return () => {
-            off();
-        };
-    }, []);
+    const path = useProjectStore(({ generatedContents }) =>
+        generatedContents ? "/output/presence/" + generatedContents.projectId : null,
+    );
 
     if (!path) return null;
 
@@ -116,7 +106,9 @@ function FilesLocation() {
         <Alert>
             <HugeiconsIcon icon={Idea01Icon} strokeWidth={1.75} />
             <AlertDescription className="text-wrap">
-                The generated presence QR files are stored in the <code>{path}</code>
+                The generated presence QR files are stored in{" "}
+                <code className="font-mono font-semibold">{path}</code> in the root directory of the
+                app.
             </AlertDescription>
         </Alert>
     );
@@ -140,7 +132,9 @@ function FileList({ list }: { list: string[] }) {
 function FileAction({ id }: { id: string }) {
     const { invoke, isLocked } = useCallbackLock(async () => {
         const emitAck = useSocketStore.getState().emitAck<boolean>;
-        const success = await emitAck("client:presence:generate", id);
+        const c = useProjectStore.getState().generatedContents;
+        if (!c) return;
+        const success = await emitAck("client:presence:generate", id, c.projectId);
         if (!success) return;
 
         toast.success(`Successfully generated presence for "${id}".`);
@@ -159,6 +153,9 @@ function MissingFileContent({ list }: { list: string[] }) {
     const { invoke, isLocked } = useCallbackLock(async () => {
         await new Promise<void>((resolve) => {
             const { on, emit } = useSocketStore.getState();
+            const c = useProjectStore.getState().generatedContents;
+            if (!c) return;
+
             const [off] = on("server:presence:generate:done", (success: number) => {
                 if (success === 0) toast.error("Failed to generate presence.");
                 toast.success(
@@ -169,7 +166,7 @@ function MissingFileContent({ list }: { list: string[] }) {
                 off();
             });
 
-            emit("client:presence:generate:many", list);
+            emit("client:presence:generate:many", list, c.projectId);
         });
     });
 
