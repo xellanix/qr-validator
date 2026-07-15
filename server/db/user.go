@@ -44,7 +44,7 @@ func getAuthGCM() (cipher.AEAD, error) {
 	return authGCMInstance, authGCMErr
 }
 
-func writeTokenFile(name string, tokenBytes []byte) error {
+func writeTokenFile(name string, tokenBytes []byte, projectId string) error {
 	now := time.Now()
 	timemark := fmt.Sprintf("%04d%02d%02d%02d%02d%02d%03d",
 		now.Year(), int(now.Month()), now.Day(),
@@ -58,7 +58,7 @@ func writeTokenFile(name string, tokenBytes []byte) error {
 	fileName := fmt.Sprintf("%s_%s.key", strings.ToLower(reg.ReplaceAllString(name, "_")), timemark)
 
 	// Utilizes PublicDir from previous persist steps
-	outPath := persist.PublicDir("output", "users", fileName)
+	outPath := persist.PublicDir("output", "users", projectId, fileName)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return err
 	}
@@ -124,13 +124,13 @@ func AddUser(user any, optionalPayload []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	if err := writeTokenFile(u.Name, tokenBytes); err != nil {
+	if err := writeTokenFile(u.Name, tokenBytes, ""); err != nil {
 		return nil, err
 	}
 	return tokenBytes, nil
 }
 
-func AddUsers(users []types.User) ([][]byte, [][]byte, error) {
+func AddUsers(users []types.User, projectId string) ([][]byte, [][]byte, error) {
 	tx, err := DB.Begin()
 	if err != nil {
 		return nil, nil, err
@@ -172,7 +172,7 @@ func AddUsers(users []types.User) ([][]byte, [][]byte, error) {
 	}
 
 	for _, fp := range filePayloads {
-		if err := writeTokenFile(fp.Name, fp.TokenBytes); err != nil {
+		if err := writeTokenFile(fp.Name, fp.TokenBytes, projectId); err != nil {
 			return nil, nil, err
 		}
 		tokensBytes = append(tokensBytes, fp.TokenBytes)

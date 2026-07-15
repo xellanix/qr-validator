@@ -37,14 +37,14 @@ func getUserDataGCM() cipher.AEAD {
 	return userCryptoInstance
 }
 
-func executeQRGeneration(value string) bool {
+func executeQRGeneration(value string, projectID string) bool {
 	gcm := getUserDataGCM()
 	encryptedStr, err := lib.EncryptData[string](value, gcm)
 	if err != nil {
 		return false
 	}
 
-	outPath := persist.PublicDir("output", "presence_qr", fmt.Sprintf("%s.png", value))
+	outPath := persist.PublicDir("output", "presence", projectID, fmt.Sprintf("%s.png", value))
 	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return false
 	}
@@ -56,9 +56,19 @@ func executeQRGeneration(value string) bool {
 
 func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 	client.On("client:presence:path", func(args ...any) {
+		if len(args) < 1 {
+			return
+		}
+		projectID, _ := args[0].(string)
+		trimmed := strings.TrimSpace(projectID)
+		if trimmed == "" {
+			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
+			return
+		}
+
 		ctx := client.Data().(*types.SocketData)
 		if ctx.IsTrulyLocal {
-			client.Emit("server:presence:path", persist.PublicDir("output", "presence_qr"))
+			client.Emit("server:presence:path", persist.PublicDir("output", "presence", trimmed))
 		}
 	})
 
@@ -99,7 +109,7 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 			if val == "" {
 				continue
 			}
-			filePath := persist.PublicDir("output", "presence_qr", fmt.Sprintf("%s.png", val))
+			filePath := persist.PublicDir("output", "presence", trimmed, fmt.Sprintf("%s.png", val))
 			status := "missing"
 			if _, err := os.Stat(filePath); err == nil {
 				status = "generated"
@@ -114,17 +124,25 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 	})
 
 	client.On("client:presence:generate", func(args ...any) {
-		if len(args) < 2 {
+		if len(args) < 3 {
 			return
 		}
 		value, _ := args[0].(string)
-		ctx := client.Data().(*types.SocketData)
-		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
-			client.Emit("server:response:error", fmt.Sprintf("Unauthorized generate attempt by user: %s", ctx.User.Name))
+		projectID, _ := args[1].(string)
+
+		trimmed := strings.TrimSpace(projectID)
+		if trimmed == "" {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Project identifier tracking cannot be empty."})
 			return
 		}
 
-		if !executeQRGeneration(value) {
+		ctx := client.Data().(*types.SocketData)
+		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Unauthorized generate attempt by user: %s", ctx.User.Name)})
+			return
+		}
+
+		if !executeQRGeneration(value, trimmed) {
 			invokeAck(args, types.SocketResponse{Status: "error", Error: "Error generating PNG."})
 			return
 		}
@@ -146,9 +164,16 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 		rawBytes, _ := json.Marshal(args[0])
 		_ = json.Unmarshal(rawBytes, &items)
 
+		projectID, _ := args[1].(string)
+		trimmed := strings.TrimSpace(projectID)
+		if trimmed == "" {
+			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
+			return
+		}
+
 		count := 0
 		for _, item := range items {
-			if executeQRGeneration(item) {
+			if executeQRGeneration(item, trimmed) {
 				count++
 				io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", item)
 			}

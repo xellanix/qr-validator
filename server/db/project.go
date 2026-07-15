@@ -35,7 +35,7 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 		return "", err
 	}
 
-	_, hashes, err := AddUsers(assignedUsers)
+	_, hashes, err := AddUsers(assignedUsers, id)
 	if err != nil || len(hashes) == 0 {
 		return "", err
 	}
@@ -176,7 +176,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		totalChanges += changes
 
 		for _, fp := range filePayloads {
-			writeTokenFile(fp.Name, fp.TokenBytes)
+			writeTokenFile(fp.Name, fp.TokenBytes, id)
 		}
 	}
 

@@ -99,7 +99,9 @@ function FilesLocation() {
     const [path, setPath] = useState("");
     useEffect(() => {
         const { emit, on } = useSocketStore.getState();
-        emit("client:presence:path");
+        const c = useProjectStore.getState().generatedContents;
+        if (!c) return;
+        emit("client:presence:path", c.projectId);
 
         const [off] = on("server:presence:path", (data) => {
             setPath(data);
@@ -140,7 +142,9 @@ function FileList({ list }: { list: string[] }) {
 function FileAction({ id }: { id: string }) {
     const { invoke, isLocked } = useCallbackLock(async () => {
         const emitAck = useSocketStore.getState().emitAck<boolean>;
-        const success = await emitAck("client:presence:generate", id);
+        const c = useProjectStore.getState().generatedContents;
+        if (!c) return;
+        const success = await emitAck("client:presence:generate", id, c.projectId);
         if (!success) return;
 
         toast.success(`Successfully generated presence for "${id}".`);
@@ -159,6 +163,9 @@ function MissingFileContent({ list }: { list: string[] }) {
     const { invoke, isLocked } = useCallbackLock(async () => {
         await new Promise<void>((resolve) => {
             const { on, emit } = useSocketStore.getState();
+            const c = useProjectStore.getState().generatedContents;
+            if (!c) return;
+
             const [off] = on("server:presence:generate:done", (success: number) => {
                 if (success === 0) toast.error("Failed to generate presence.");
                 toast.success(
@@ -169,7 +176,7 @@ function MissingFileContent({ list }: { list: string[] }) {
                 off();
             });
 
-            emit("client:presence:generate:many", list);
+            emit("client:presence:generate:many", list, c.projectId);
         });
     });
 
