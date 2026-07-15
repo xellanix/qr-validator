@@ -27,6 +27,7 @@ func ExecDir(segments ...string) string {
 			base = filepath.Dir(exePath)
 		} else {
 			base, err = os.Getwd()
+			base = filepath.Dir(base)
 		}
 
 		if err != nil {
