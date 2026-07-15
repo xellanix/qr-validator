@@ -116,20 +116,28 @@ func HandleSignUp(c fiber.Ctx) error {
 }
 
 func HandleSignOut(c fiber.Ctx) error {
-	// Erase authentication states instantly by zeroing out lifespans
-	eraseCookie := &fiber.Cookie{
-		Path:     "/",
-		Value:    "",
-		Expires:  time.Unix(0, 0),
-		HTTPOnly: true,
-		Secure:   true,
+	sameSite := "Lax"
+	if constants.IS_PROD {
+		sameSite = "Strict"
 	}
 
-	authCookie := *eraseCookie
+	// Mirror the setup configuration, but expire it immediately
+	cookieConfig := &fiber.Cookie{
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: sameSite,
+		Expires:  time.Now().Add(-24 * time.Hour), // Tells the browser to delete it
+		Value:    "",                              // Clear the value
+	}
+
+	// Clear auth_token
+	authCookie := *cookieConfig
 	authCookie.Name = "auth_token"
 	c.Cookie(&authCookie)
 
-	hashCookie := *eraseCookie
+	// Clear user_hash
+	hashCookie := *cookieConfig
 	hashCookie.Name = "user_hash"
 	c.Cookie(&hashCookie)
 

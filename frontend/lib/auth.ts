@@ -44,7 +44,7 @@ export const signIn = async (userId: ArrayBuffer) => {
 
 export const signOut = async () => {
     const url = new URL("/auth/signout", getBackendUrl()).href;
-    await fetch(url, { credentials: "include" });
+    await fetch(url, { method: "POST", credentials: "include" });
     window.location.reload();
 };
 
