@@ -37,3 +37,6 @@ dist-ssr
 # temporary files
 **/.vscode/settings.json
 __*
+
+# generated version info
+versioninfo.json
