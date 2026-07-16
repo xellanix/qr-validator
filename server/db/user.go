@@ -46,13 +46,13 @@ func getAuthGCM() (cipher.AEAD, error) {
 
 func writeTokenFile(name string, tokenBytes []byte, projectId string) error {
 	now := time.Now()
-	timemark := fmt.Sprintf("%04d%02d%02d%02d%02d%02d%03d",
+	randVal, _ := rand.Int(rand.Reader, big.NewInt(1000))
+	timemark := fmt.Sprintf("%04d%02d%02d%02d%02d%02d%03d%03d",
 		now.Year(), int(now.Month()), now.Day(),
 		now.Hour(), now.Minute(), now.Second(),
 		now.Nanosecond()/1e6,
+		randVal.Int64(),
 	)
-	randVal, _ := rand.Int(rand.Reader, big.NewInt(1000))
-	timemark += randVal.String()
 
 	reg := regexp.MustCompile(`[^a-zA-Z0-9]`)
 	fileName := fmt.Sprintf("%s_%s.key", strings.ToLower(reg.ReplaceAllString(name, "_")), timemark)

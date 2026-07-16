@@ -42,6 +42,7 @@ export function ProjectMoreButton({ id }: { id: string }) {
                 activePage: "1",
                 projectId: id,
                 datasetKey: s.projects[id].key,
+                users: s.projects[id].users,
                 presences: [],
             },
         }));

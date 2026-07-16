@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import type { DatasetPayload, DatasetRow, DatasetRowKey } from "~/types/dataset";
 import type { PresenceContent } from "~/types/generated-contents";
 import type { ProjectWithDataset } from "~/types/project";
+import type { User } from "~/types/user";
 import type { ProjectItem, SchemaObjectSortable } from "@/types/project";
 import { string } from "zod";
 import { create } from "zustand";
@@ -16,6 +17,7 @@ interface GeneratedContentsMetadata {
     activePage: string;
     projectId: string;
     datasetKey: string;
+    users: User[];
     presences: PresenceContent[];
 }
 
