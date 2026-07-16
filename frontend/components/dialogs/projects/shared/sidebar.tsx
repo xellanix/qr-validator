@@ -1,7 +1,6 @@
-import type { NavigationItem } from "@/components/dialogs/projects/shared";
+import type { NavigationItem, SidebarButtonProps } from "@/components/dialogs/projects/shared";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
-import { useProjectStore } from "@/stores/project.store";
 import {
     Sidebar,
     SidebarContent,
@@ -12,7 +11,11 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-export function DialogSidebar({ navs }: { navs: NavigationItem[] }) {
+interface DialogSidebarProps {
+    navs: NavigationItem[];
+    ItemComponent: React.ComponentType<SidebarButtonProps>;
+}
+export function DialogSidebar({ navs, ItemComponent }: DialogSidebarProps) {
     return (
         <Sidebar className="h-full">
             <SidebarContent>
@@ -20,7 +23,7 @@ export function DialogSidebar({ navs }: { navs: NavigationItem[] }) {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {navs.map((nav) => (
-                                <SidebarButton key={nav.id} nav={nav} />
+                                <ItemComponent key={nav.id} nav={nav} />
                             ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
@@ -30,15 +33,16 @@ export function DialogSidebar({ navs }: { navs: NavigationItem[] }) {
     );
 }
 
-function SidebarButton({ nav }: { nav: Omit<NavigationItem, "content" | "children"> }) {
-    const isActive = useProjectStore((s) => s.edit.activePage.split(".")[0] === nav.id);
-    const setActivePage = useProjectStore((s) => s.setActivePage);
-
+interface DefaultSidebarButtonProps extends SidebarButtonProps {
+    isActive: boolean;
+    setActivePage: () => void;
+}
+export function DefaultSidebarButton({ nav, isActive, setActivePage }: DefaultSidebarButtonProps) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
                 isActive={isActive}
-                onClick={() => setActivePage(nav.id)}
+                onClick={setActivePage}
                 className={cn(
                     "before:bg-brand relative before:absolute before:top-full before:bottom-full before:left-0 before:z-10 before:w-0.75 before:rounded-full before:transition-all before:duration-133 before:ease-out",
                     { "before:top-2.5 before:bottom-2.5": isActive },

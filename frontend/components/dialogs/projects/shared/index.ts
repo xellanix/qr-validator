@@ -8,3 +8,7 @@ export type NavigationItem = {
     content: React.ReactNode;
     children?: NavigationLookup;
 };
+
+export interface SidebarButtonProps {
+    nav: Omit<NavigationItem, "content" | "children">;
+}
