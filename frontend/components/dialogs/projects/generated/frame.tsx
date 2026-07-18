@@ -17,7 +17,7 @@ export function SidebarFrame() {
                 />
                 <SidebarFrameBreadcrumb />
             </header>
-            <section className="flex size-full flex-col overflow-y-auto px-4 has-data-[slot=tabs]:overflow-hidden has-data-[slot=tabs]:*:size-full">
+            <section className="flex size-full flex-col overflow-y-auto px-4 has-data-[slot=tabs]:overflow-hidden has-data-[slot=tabs]:px-0 has-data-[slot=tabs]:*:size-full">
                 <SidebarFrameContent />
             </section>
         </main>

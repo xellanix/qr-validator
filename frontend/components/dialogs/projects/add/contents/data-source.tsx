@@ -3,7 +3,7 @@ import { Idea01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { cn, getBackendUrl } from "@/lib/utils";
+import { cn, formatFileSize, getBackendUrl } from "@/lib/utils";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -187,33 +187,6 @@ function DatasetSourceAction() {
         </Combobox>
     );
 }
-
-const getStorageStandardForOS = () => {
-    if (typeof window === "undefined") return "decimal";
-
-    const platform =
-        // @ts-expect-error - userAgentData is modern but TS types might lag
-        window.navigator?.userAgentData?.platform?.toLowerCase() ||
-        window.navigator?.platform?.toLowerCase() ||
-        "";
-
-    if (platform.includes("win")) {
-        return "binary";
-    }
-
-    return "decimal";
-};
-
-const formatFileSize = (bytes: number, decimals = 3) => {
-    if (bytes === 0) return "0 byte";
-
-    const k = getStorageStandardForOS() === "binary" ? 1024 : 1000;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ["bytes", "KB", "MB", "GB", "TB", "PB"];
-
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-};
 
 function NewDataset() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);

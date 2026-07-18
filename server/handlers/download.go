@@ -115,3 +115,39 @@ func HandleUserKeyDownload(c fiber.Ctx) error {
 		return cleaned, filepath.Base(cleaned), nil
 	})
 }
+
+func HandlePresenceDownload(c fiber.Ctx) error {
+	return handleDownload(c, persist.PublicDir("output", "presence"), func(c fiber.Ctx, trimmed, dir string) (string, string, error) {
+		badRequest := func() (string, string, error) {
+			return "", "", c.Status(fiber.StatusBadRequest).SendString("Bad Request")
+		}
+
+		if trimmed == "" {
+			return badRequest()
+		}
+
+		segments := strings.Split(trimmed, string(filepath.Separator))
+		if len(segments) != 2 {
+			return badRequest()
+		}
+
+		projectID, err := url.PathUnescape(segments[0])
+		if err != nil {
+			return badRequest()
+		}
+		trimmedProjectID := (strings.TrimSpace(projectID))
+		if trimmedProjectID == "" {
+			return badRequest()
+		}
+
+		name, err := url.PathUnescape(segments[1])
+		if err != nil || name == "" {
+			return badRequest()
+		}
+
+		targetPath := filepath.Join(dir, trimmedProjectID, name+".png")
+
+		cleaned := filepath.Clean(targetPath)
+		return cleaned, filepath.Base(cleaned), nil
+	})
+}

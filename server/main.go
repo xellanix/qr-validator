@@ -112,6 +112,7 @@ func main() {
 	app.Post("/api/dataset/extract", handlers.HandleExtractCSVColumns)
 
 	app.Get("/api/download/user/*", handlers.HandleUserKeyDownload)
+	app.Get("/api/download/presence/*", handlers.HandlePresenceDownload)
 
 	// Mount the Socket.IO Web server handler using a standard HTTP request context proxy adaptor
 	socketHandler := adaptor.HTTPHandler(io.ServeHandler(nil))

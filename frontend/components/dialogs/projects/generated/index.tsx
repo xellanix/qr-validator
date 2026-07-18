@@ -3,9 +3,10 @@ import { useProjectStore } from "@/stores/project.store";
 import { Footer } from "@/components/dialogs/projects/generated/footer";
 import { SidebarFrame } from "@/components/dialogs/projects/generated/frame";
 import { NAVIGATION_LIST } from "@/components/dialogs/projects/generated/registry";
+import { DialogContent } from "@/components/dialogs/projects/shared/root";
 import { DefaultSidebarButton, DialogSidebar } from "@/components/dialogs/projects/shared/sidebar";
 import { disableCloseExceptButton } from "@/components/dialogs/shared";
-import { DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { DialogTitle } from "@/components/ui/dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 export function ProjectGeneratedContentsDialog() {

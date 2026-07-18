@@ -4,6 +4,7 @@ import (
 	"crypto/cipher"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"premark/db"
@@ -52,6 +53,47 @@ func executeQRGeneration(value string, projectID string) bool {
 	// Uses standard go-qrcode engine producing explicit 1024px squares natively
 	err = qrcode.WriteFile(encryptedStr, qrcode.Medium, 1024, outPath)
 	return err == nil
+}
+
+func getSuccessfulDeletions(targetDir string, mustDelete []string) []string {
+	err := os.RemoveAll(targetDir)
+	if err == nil {
+		return mustDelete
+	}
+
+	successful := mustDelete[:0]
+	for _, filename := range mustDelete {
+		fullpath := filepath.Join(targetDir, fmt.Sprintf("%s.png", filename))
+		if _, err := os.Lstat(fullpath); os.IsNotExist(err) {
+			successful = append(successful, filename)
+		}
+	}
+
+	return successful
+}
+
+// getDirSize returns the total size of a directory in bytes.
+func getDirSize(path string) (int64, error) {
+	var size int64
+
+	err := filepath.WalkDir(path, func(subPath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// If it's a file, get its size and add it to the total
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			size += info.Size()
+		}
+
+		return nil
+	})
+
+	return size, err
 }
 
 func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
@@ -130,11 +172,11 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 		invokeAck(args, types.SocketResponse{Status: "success", Data: true})
-		io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", value)
+		io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", "generate", value)
 	})
 
 	client.On("client:presence:generate:many", func(args ...any) {
-		if len(args) < 1 {
+		if len(args) < 2 {
 			return
 		}
 		ctx := client.Data().(*types.SocketData)
@@ -158,9 +200,64 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 		for _, item := range items {
 			if executeQRGeneration(item, trimmed) {
 				count++
-				io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", item)
+				io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", "generate", item)
 			}
 		}
 		client.Emit("server:presence:generate:done", count)
+	})
+
+	client.On("client:presence:delete:all", func(args ...any) {
+		if len(args) < 2 {
+			return
+		}
+		ctx := client.Data().(*types.SocketData)
+		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
+			client.Emit("server:response:error", fmt.Sprintf("Unauthorized delete attempt by user: %s", ctx.User.Name))
+			return
+		}
+
+		var mustDelete []string
+		rawBytes, _ := json.Marshal(args[0])
+		_ = json.Unmarshal(rawBytes, &mustDelete)
+
+		projectID, _ := args[1].(string)
+		trimmed := strings.TrimSpace(projectID)
+		if trimmed == "" {
+			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
+			return
+		}
+
+		projectDir := persist.PublicDir("output", "presence", projectID)
+		deleted := getSuccessfulDeletions(projectDir, mustDelete)
+
+		io.To(socket.Room(ctx.UserHashBase64)).Emit("server:presence:update", "delete", deleted)
+		client.Emit("server:presence:delete:done", len(deleted))
+	})
+
+	client.On("client:presence:usage", func(args ...any) {
+		if len(args) < 1 {
+			return
+		}
+		ctx := client.Data().(*types.SocketData)
+		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
+			client.Emit("server:response:error", fmt.Sprintf("Unauthorized fetch usage attempt by user: %s", ctx.User.Name))
+			return
+		}
+
+		projectID, _ := args[0].(string)
+		trimmed := strings.TrimSpace(projectID)
+		if trimmed == "" {
+			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
+			return
+		}
+
+		projectDir := persist.PublicDir("output", "presence", projectID)
+		size, err := getDirSize(projectDir)
+		if err != nil {
+			client.Emit("server:response:error", err.Error())
+			return
+		}
+
+		client.Emit("server:presence:usage:done", size)
 	})
 }
