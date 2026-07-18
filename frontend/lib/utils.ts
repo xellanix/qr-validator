@@ -111,3 +111,36 @@ export function getBackendUrl() {
 
     return window.location.origin;
 }
+
+const getStorageStandardForOS = () => {
+    if (typeof window === "undefined") return "decimal";
+
+    const platform =
+        // @ts-expect-error - userAgentData is modern but TS types might lag
+        window.navigator?.userAgentData?.platform?.toLowerCase() ||
+        window.navigator?.platform?.toLowerCase() ||
+        "";
+
+    if (platform.includes("win")) {
+        return "binary";
+    }
+
+    return "decimal";
+};
+
+/**
+ * Format a file size in bytes to a human-readable string.
+ * @param bytes The file size in bytes
+ * @param decimals The number of decimal places to include in the result
+ * @returns A human-readable string representing the file size
+ */
+export function formatFileSize(bytes: number, decimals = 3) {
+    if (bytes === 0) return "0 byte";
+
+    const k = getStorageStandardForOS() === "binary" ? 1024 : 1000;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["bytes", "KB", "MB", "GB", "TB", "PB"];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}

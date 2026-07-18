@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { getBackendUrl } from "@/lib/utils";
+import { formatFileSize, getBackendUrl } from "@/lib/utils";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { useCallbackLock } from "@/hooks/use-callback-lock";
@@ -291,33 +291,6 @@ function GeneratedFileAction({ id }: { id: string }) {
         </ItemActions>
     );
 }
-
-const getStorageStandardForOS = () => {
-    if (typeof window === "undefined") return "decimal";
-
-    const platform =
-        // @ts-expect-error - userAgentData is modern but TS types might lag
-        window.navigator?.userAgentData?.platform?.toLowerCase() ||
-        window.navigator?.platform?.toLowerCase() ||
-        "";
-
-    if (platform.includes("win")) {
-        return "binary";
-    }
-
-    return "decimal";
-};
-
-const formatFileSize = (bytes: number, decimals = 3) => {
-    if (bytes === 0) return "0 byte";
-
-    const k = getStorageStandardForOS() === "binary" ? 1024 : 1000;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ["bytes", "KB", "MB", "GB", "TB", "PB"];
-
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-};
 
 function GeneratedFileContent({ list }: { list: string[] }) {
     const { invoke, isLocked } = useCallbackLock(async () => {
