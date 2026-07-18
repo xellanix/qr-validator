@@ -176,7 +176,7 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 	})
 
 	client.On("client:presence:generate:many", func(args ...any) {
-		if len(args) < 1 {
+		if len(args) < 2 {
 			return
 		}
 		ctx := client.Data().(*types.SocketData)
