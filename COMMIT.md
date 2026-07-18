@@ -35,6 +35,11 @@
    - `app`: app related
    - `console`: console related
    - `project`: project (store) related
+   - `history`: history related
+   - `generated`: generated files
+   - `input`: input related (not html input element)
+   - `output`: output related
+   - `data`: data related
 
    **Note on Scopes**: 
    - If the change doesn't fit the map or is too generic, leave the scope empty: `type: subject`.
