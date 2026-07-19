@@ -9,6 +9,6 @@ export function getUserRole(authorizeLevel: User["authorizeLevel"]) {
         case 2:
             return "Supervisor";
         case 3:
-            return "Project Administrator";
+            return "Administrator";
     }
 }
