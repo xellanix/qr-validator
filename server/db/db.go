@@ -19,7 +19,7 @@ import (
 var DB *sql.DB
 
 // targetVersion is the target schema version to migrate to
-const targetVersion = 2
+const targetVersion = 3
 
 // runMigrations runs the core database migration process
 func runMigrations() error {
@@ -112,6 +112,13 @@ CREATE TRIGGER IF NOT EXISTS cleanup_orphaned_users
 		WHERE user_hash = OLD.user_hash
 		AND NOT EXISTS (SELECT 1 FROM project_users WHERE user_hash = OLD.user_hash);
 	END;
+
+CREATE TRIGGER IF NOT EXISTS update_projects_updated_at 
+	AFTER UPDATE ON projects
+	WHEN OLD.updated_at IS NEW.updated_at
+	BEGIN
+	    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+	END;
 	`
 			if _, err := DB.Exec(schema); err != nil {
 				return fmt.Errorf("Failed to execute data schema initialization migrations: %w", err)
@@ -151,6 +158,24 @@ CREATE TRIGGER IF NOT EXISTS cleanup_orphaned_users
 
 		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("Failed to commit transaction: %w", err)
+		}
+	}
+
+	// Migration: Version 2 -> 3
+	if currentVersion < 3 {
+		schema := `
+CREATE TRIGGER IF NOT EXISTS update_projects_updated_at 
+	AFTER UPDATE ON projects
+	WHEN OLD.updated_at IS NEW.updated_at
+	BEGIN
+	    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+	END;`
+		if _, err := DB.Exec(schema); err != nil {
+			return fmt.Errorf("Failed to execute data schema initialization migrations: %w", err)
+		}
+
+		if _, err := DB.Exec("PRAGMA user_version = 3;"); err != nil {
+			return fmt.Errorf("Failed to execute migration query: %w", err)
 		}
 	}
 
