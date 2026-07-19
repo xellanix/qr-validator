@@ -7,6 +7,7 @@ import { useCallbackLock } from "@/hooks/use-callback-lock";
 import { CreateAdminAccountDialog } from "@/components/dialogs/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
 const base64ToArrayBuffer = async (base64: string) => {
@@ -122,7 +123,7 @@ export function LogoutButton() {
 
     return (
         <Button
-            variant="outline"
+            variant="tertiary"
             size="icon"
             onClick={attemptSignOut}
             aria-label="Sign out"
@@ -130,5 +131,18 @@ export function LogoutButton() {
         >
             <HugeiconsIcon icon={Logout02Icon} className="size-4" />
         </Button>
+    );
+}
+
+export function LogoutMenuButton() {
+    const { invoke: attemptSignOut, isLocked } = useCallbackLock(async () => {
+        await signOut();
+    });
+
+    return (
+        <DropdownMenuItem onClick={attemptSignOut} disabled={isLocked}>
+            <HugeiconsIcon icon={Logout02Icon} className="size-4" />
+            Sign out
+        </DropdownMenuItem>
     );
 }
