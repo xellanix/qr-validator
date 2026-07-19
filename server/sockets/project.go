@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
 	"premark/db"
 	"premark/lib"
+	"premark/persist"
 	"premark/types"
 	"regexp"
 	"strings"
@@ -251,6 +253,12 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			rooms.Emit("server:project:delete", id)
 		}
 		invokeAck(args, types.SocketResponse{Status: "success", Data: success})
+
+		if err == nil && success {
+			// Delete the project folder from the file system
+			_ = os.RemoveAll(persist.PublicDir("output", "users", id))
+			_ = os.RemoveAll(persist.PublicDir("output", "presence", id))
+		}
 	})
 
 	client.On("client:project:activation:toggle", func(args ...any) {
