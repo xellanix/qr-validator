@@ -86,6 +86,33 @@ export function SummarySection() {
                 <ActiveSchemasFlow />
             </ItemGroup>
 
+            <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0">
+                <Item variant={"outline"}>
+                    <ItemContent>
+                        <ItemTitle>Duplicate Valid Inputs</ItemTitle>
+                    </ItemContent>
+                    <ItemActions className="font-mono">
+                        {newProject.data.allowDuplicateValid ? "Allowed" : "Not Allowed"}
+                    </ItemActions>
+                </Item>
+                <Item variant={"outline"}>
+                    <ItemContent>
+                        <ItemTitle>Maximum Valid Duplicates</ItemTitle>
+                    </ItemContent>
+                    <ItemActions className="font-mono">
+                        {newProject.data.maxValidDuplicate}
+                    </ItemActions>
+                </Item>
+                <Item variant={"outline"}>
+                    <ItemContent>
+                        <ItemTitle>Continuous Scanning</ItemTitle>
+                    </ItemContent>
+                    <ItemActions className="font-mono">
+                        {newProject.data.isContinuousScanning ? "Enabled" : "Disabled"}
+                    </ItemActions>
+                </Item>
+            </ItemGroup>
+
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
                 <Item variant={"outline"}>
                     <ItemContent>

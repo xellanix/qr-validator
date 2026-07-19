@@ -17,6 +17,12 @@ export type Project = {
     schemaObjects: SchemaObject[];
     /** The users that have access to this project */
     users: User[];
+    /** Whether the project allows duplicate valid */
+    allowDuplicateValid: boolean;
+    /** The maximum number of valid duplicates allowed */
+    maxValidDuplicate: number;
+    /** Whether the project is in continuous scanning mode */
+    isContinuousScanning: boolean;
 };
 
 export type ProjectWithDataset = Project & CachedDataset;

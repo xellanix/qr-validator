@@ -5,32 +5,37 @@ import (
 	"encoding/json"
 	"fmt"
 	"premark/types"
+	"reflect"
 	"strings"
 )
 
 type projectRow struct {
-	ID            string
-	DatasetID     sql.NullString
-	Name          string
-	SchemaObjects string
+	ID                   string
+	DatasetID            sql.NullString
+	Name                 string
+	SchemaObjects        string
+	AllowDuplicateValid  bool
+	MaxValidDuplicate    int
+	IsContinuousScanning bool
 }
 
-const addProjectQuery = "INSERT INTO projects (dataset_id, creator_user_hash, name, schema_objects) VALUES (?, ?, ?, ?) RETURNING id"
+const addProjectQuery = "INSERT INTO projects (dataset_id, creator_user_hash, name, schema_objects, allow_duplicate_valid, max_valid_duplicate, is_continuous_scanning) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id"
 const assignUsersToProjectQuery = "INSERT OR IGNORE INTO project_users (project_id, user_hash) VALUES (?, ?)"
 const getAssignedUsersDataByProjectIdQuery = "SELECT u.payload FROM project_users p JOIN users u ON p.user_hash = u.user_hash WHERE p.project_id = ?"
-const getAllProjectsQuery = "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ?"
-const findProjectByIdQuery = "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ? AND id = ?"
+const getAllProjectsQuery = "SELECT id, dataset_id, name, schema_objects, allow_duplicate_valid, max_valid_duplicate, is_continuous_scanning FROM projects WHERE creator_user_hash = ?"
+const findProjectByIdQuery = "SELECT id, dataset_id, name, schema_objects, allow_duplicate_valid, max_valid_duplicate, is_continuous_scanning FROM projects WHERE creator_user_hash = ? AND id = ?"
+const findProjectScanOptByIdQuery = "SELECT allow_duplicate_valid, max_valid_duplicate, is_continuous_scanning FROM projects WHERE creator_user_hash = ? AND id = ?"
 const deleteAssignedUsersFromProjectQuery = "DELETE FROM project_users WHERE project_id = ?"
 const deleteProjectByIdQuery = "DELETE FROM projects WHERE creator_user_hash = ? AND id = ?"
 
-func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User) (string, error) {
+func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User, allowDuplicateValid bool, maxValidDuplicate int, isContinuousScanning bool) (string, error) {
 	schemaBytes, err := json.Marshal(schemaObjects)
 	if err != nil {
 		return "", err
 	}
 
 	var id string
-	err = DB.QueryRow(addProjectQuery, sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes)).Scan(&id)
+	err = DB.QueryRow(addProjectQuery, sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes), allowDuplicateValid, maxValidDuplicate, isContinuousScanning).Scan(&id)
 	if err != nil {
 		return "", err
 	}
@@ -71,6 +76,9 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 	p["id"] = row.ID
 	p["name"] = row.Name
 	p["schemaObjects"] = schema
+	p["allowDuplicateValid"] = row.AllowDuplicateValid
+	p["maxValidDuplicate"] = row.MaxValidDuplicate
+	p["isContinuousScanning"] = row.IsContinuousScanning
 
 	if !excludeDatasetId {
 		if row.DatasetID.Valid {
@@ -119,7 +127,7 @@ func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
 	projects := make(map[string]any)
 	for rows.Next() {
 		var r projectRow
-		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects); err != nil {
+		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning); err != nil {
 			continue
 		}
 
@@ -134,7 +142,7 @@ func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
 
 func FindProjectById(userHash []byte, id string, withDataset, excludeDatasetId bool) (map[string]any, error) {
 	var r projectRow
-	err := DB.QueryRow(findProjectByIdQuery, userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects)
+	err := DB.QueryRow(findProjectByIdQuery, userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -142,6 +150,36 @@ func FindProjectById(userHash []byte, id string, withDataset, excludeDatasetId b
 	}
 
 	return getProjectWithRelations(userHash, r, withDataset, true, excludeDatasetId)
+}
+
+func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) {
+	var r struct {
+		allowDuplicateValid  bool
+		maxValidDuplicate    int
+		isContinuousScanning bool
+	}
+	err := DB.QueryRow(findProjectScanOptByIdQuery, userHash, id).Scan(&r.allowDuplicateValid, &r.maxValidDuplicate, &r.isContinuousScanning)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]any)
+	v := reflect.ValueOf(r)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		value := v.Field(i).Interface()
+		res[field.Name] = value
+	}
+
+	return res, nil
 }
 
 func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, newAssignedUsers []types.User) (int64, error) {

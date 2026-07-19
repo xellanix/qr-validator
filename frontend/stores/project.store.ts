@@ -141,12 +141,26 @@ const serverToFrontend = (projects: Record<string, ProjectWithDataset>) => {
         _ps[k].columnKeys = Object.keys(projects[k].columns);
         _ps[k].schemaObjects = schemas;
         _ps[k].schema = schemaObjectsToZod(schemas);
+
+        _ps[k].allowDuplicateValid ??= false;
+        _ps[k].maxValidDuplicate = Math.max(2, (_ps[k].maxValidDuplicate ?? 2) as number);
+        _ps[k].isContinuousScanning = _ps[k].allowDuplicateValid
+            ? false
+            : (_ps[k].isContinuousScanning ?? true);
     }
     return _ps as Record<string, ProjectItem>;
 };
 
 const updateServerProject = (project: ProjectItem, prev: ProjectItem) => {
-    const projectsKeys: (keyof ProjectItem)[] = ["name", "datasetId", "schemaObjects", "users"];
+    const projectsKeys: (keyof ProjectItem)[] = [
+        "name",
+        "datasetId",
+        "schemaObjects",
+        "users",
+        "allowDuplicateValid",
+        "maxValidDuplicate",
+        "isContinuousScanning",
+    ];
     const datasetsKeys: (keyof ProjectItem)[] = ["key", "keyLabel", "columns"];
 
     const projectsPayload: Record<string, unknown> = {};
