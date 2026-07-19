@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/adaptor"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
@@ -27,8 +28,6 @@ var (
 //
 //go:embed dist/frontend
 var embeddedFrontend embed.FS
-
-var AuthHeaders = map[string]string{}
 
 func printAppHeader() {
 	var mode string
@@ -65,15 +64,6 @@ func printAppHeader() {
 func init() {
 	printAppHeader()
 	migration.StartMigration()
-
-	if !constants.IS_PROD {
-		// Populate development CORS values matching your original config
-		AuthHeaders["Access-Control-Allow-Origin"] = "http://localhost:" + constants.FRONTEND_PORT
-		AuthHeaders["Access-Control-Allow-Credentials"] = "true"
-		AuthHeaders["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
-		AuthHeaders["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-		AuthHeaders["Access-Control-Max-Age"] = "7200"
-	}
 }
 
 func main() {
@@ -87,19 +77,20 @@ func main() {
 
 	// Replicate programmatic development CORS strategies
 	if !constants.IS_PROD {
-		app.Use(func(c fiber.Ctx) error {
-			// Inject the explicit Auth Headers into every response
-			for key, value := range AuthHeaders {
-				c.Set(key, value)
-			}
-
-			if c.Method() == fiber.MethodOptions {
-				return c.SendStatus(fiber.StatusOK) // Returns 200 OK with the headers attached
-			}
-
-			// Continue down the execution line to your actual handlers
-			return c.Next()
-		})
+		app.Use(cors.New(cors.Config{
+			AllowOrigins: []string{"http://localhost:" + constants.FRONTEND_PORT},
+			AllowMethods: []string{
+				fiber.MethodGet,
+				fiber.MethodPost,
+				fiber.MethodOptions,
+			},
+			AllowHeaders: []string{
+				fiber.HeaderContentType,
+				fiber.HeaderAuthorization,
+			},
+			AllowCredentials: true,
+			MaxAge:           7200, // Caches preflight OPTIONS request in seconds
+		}))
 	}
 
 	// Mount migrated service paths
