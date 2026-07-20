@@ -1,0 +1,2 @@
+ALTER TABLE projects
+ADD COLUMN allow_duplicate_valid BOOLEAN NOT NULL DEFAULT 0;

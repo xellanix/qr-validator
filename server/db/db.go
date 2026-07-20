@@ -3,23 +3,68 @@ package db
 import (
 	"crypto/cipher"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"premark/persist"
+	"sort"
+	"strconv"
 
 	"premark/lib"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//go:embed sql/migrations
+var migrationFolder embed.FS
+
 // DB represents the global shared pool connection context handle.
 var DB *sql.DB
 
-// targetVersion is the target schema version to migrate to
-const targetVersion = 3
+// migrate runs the core database migration process
+func migrate(version string, nextVersion int) error {
+	dir := "sql/migrations/v" + version
+	entries, err := migrationFolder.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("Failed to read migration directory: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, entry := range entries {
+		path := dir + "/" + entry.Name()
+		content, err := migrationFolder.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("Failed to read file %s: %w", entry.Name(), err)
+		}
+
+		if _, err := tx.Exec(string(content)); err != nil {
+			return fmt.Errorf("Migration failed in %s: %w", entry.Name(), err)
+		}
+	}
+
+	// Fast-forward straight to the target version
+	if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d;", nextVersion)); err != nil {
+		return fmt.Errorf("Failed to execute migration query: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
 
 // runMigrations runs the core database migration process
 func runMigrations() error {
@@ -27,6 +72,23 @@ func runMigrations() error {
 	err := DB.QueryRow("PRAGMA user_version").Scan(&currentVersion)
 	if err != nil {
 		return err
+	}
+
+	entries, err := migrationFolder.ReadDir("sql/migrations")
+	if err != nil {
+		return fmt.Errorf("Failed to read migration directory: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	targetVer, err := strconv.Atoi(entries[len(entries)-1].Name()[1:])
+	if err != nil {
+		return fmt.Errorf("Failed to parse migration directory: %w", err)
+	}
+	if targetVer == 0 {
+		targetVer = 1
 	}
 
 	if currentVersion == 0 {
@@ -38,144 +100,28 @@ func runMigrations() error {
 		}
 
 		if tableExists == 0 {
-			schema := `
-CREATE TABLE IF NOT EXISTS users (
-	user_hash BLOB PRIMARY KEY,
-	payload BLOB
-) WITHOUT ROWID;
-
-CREATE TABLE IF NOT EXISTS datasets (
-	id TEXT PRIMARY KEY DEFAULT (
-		lower(
-		hex(randomblob(4)) || '-' || 
-		hex(randomblob(2)) || '-4' || 
-		substr(hex(randomblob(2)), 2) || '-' || 
-		substr('89ab', abs(randomblob(1) % 4) + 1, 1) || 
-		substr(hex(randomblob(2)), 2) || '-' || 
-		hex(randomblob(6))
-		)
-	),
-	creator_user_hash BLOB,
-	payload BLOB NOT NULL,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (creator_user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS dataset_rows (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	dataset_id TEXT NOT NULL,
-	key_hash BLOB NOT NULL,
-	payload BLOB NOT NULL,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_dataset_rows_key_hash ON dataset_rows (dataset_id, key_hash);
-
-CREATE TABLE IF NOT EXISTS projects (
-	id TEXT PRIMARY KEY DEFAULT (
-		lower(
-			hex(randomblob(4)) || '-' || 
-			hex(randomblob(2)) || '-4' || 
-			substr(hex(randomblob(2)), 2) || '-' || 
-			substr('89ab', abs(randomblob(1) % 4) + 1, 1) || 
-			substr(hex(randomblob(2)), 2) || '-' || 
-			hex(randomblob(6))
-		)
-	),
-	dataset_id TEXT,
-	creator_user_hash BLOB,
-	name TEXT,
-	schema_objects TEXT,
-	allow_duplicate_valid BOOLEAN,
-	max_valid_duplicate INTEGER,
-	is_continuous_scanning BOOLEAN,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (dataset_id) REFERENCES datasets (id) ON DELETE SET NULL,
-	FOREIGN KEY (creator_user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_project_dataset_id ON projects (dataset_id);
-CREATE INDEX IF NOT EXISTS idx_project_user_hash ON projects (creator_user_hash);
-
-CREATE TABLE IF NOT EXISTS project_users (
-	project_id TEXT NOT NULL,
-	user_hash BLOB NOT NULL,
-	PRIMARY KEY (project_id, user_hash),
-	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
-	FOREIGN KEY (user_hash) REFERENCES users (user_hash) ON DELETE CASCADE
-);
-
-CREATE TRIGGER IF NOT EXISTS cleanup_orphaned_users
-	AFTER DELETE ON project_users
-	BEGIN
-		DELETE FROM users
-		WHERE user_hash = OLD.user_hash
-		AND NOT EXISTS (SELECT 1 FROM project_users WHERE user_hash = OLD.user_hash);
-	END;
-
-CREATE TRIGGER IF NOT EXISTS update_projects_updated_at 
-	AFTER UPDATE ON projects
-	WHEN OLD.updated_at IS NEW.updated_at
-	BEGIN
-	    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-	END;
-	`
-			if _, err := DB.Exec(schema); err != nil {
-				return fmt.Errorf("Failed to execute data schema initialization migrations: %w", err)
-			}
-
-			// Fast-forward straight to the target version
-			_, err = DB.Exec(fmt.Sprintf("PRAGMA user_version = %d;", targetVersion))
-			return err
+			return migrate("0", targetVer)
 		} else {
 			currentVersion = 1
 		}
 	}
 
-	// Migration: Version 1 -> 2
-	if currentVersion < 2 {
-		tx, err := DB.Begin()
+	for _, entry := range entries[1:] {
+		if !entry.IsDir() {
+			continue
+		}
+
+		verStr := entry.Name()[1:]
+		ver, err := strconv.Atoi(verStr)
 		if err != nil {
-			return fmt.Errorf("Failed to start transaction: %w", err)
-		}
-		defer tx.Rollback()
-
-		alterQueries := []string{
-			`ALTER TABLE projects ADD COLUMN allow_duplicate_valid BOOLEAN NOT NULL DEFAULT 0;`,
-			`ALTER TABLE projects ADD COLUMN max_valid_duplicate INTEGER NOT NULL DEFAULT 2;`,
-			`ALTER TABLE projects ADD COLUMN is_continuous_scanning BOOLEAN NOT NULL DEFAULT 1;`,
+			return fmt.Errorf("Failed to parse migration directory: %w", err)
 		}
 
-		for _, query := range alterQueries {
-			if _, err := tx.Exec(query); err != nil {
-				return fmt.Errorf("Failed to execute migration query (%s): %w", query, err)
+		// Migration to version n
+		if currentVersion < ver {
+			if err := migrate(verStr, ver); err != nil {
+				return err
 			}
-		}
-
-		if _, err := tx.Exec("PRAGMA user_version = 2;"); err != nil {
-			return fmt.Errorf("Failed to execute migration query: %w", err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("Failed to commit transaction: %w", err)
-		}
-	}
-
-	// Migration: Version 2 -> 3
-	if currentVersion < 3 {
-		schema := `
-CREATE TRIGGER IF NOT EXISTS update_projects_updated_at 
-	AFTER UPDATE ON projects
-	WHEN OLD.updated_at IS NEW.updated_at
-	BEGIN
-	    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-	END;`
-		if _, err := DB.Exec(schema); err != nil {
-			return fmt.Errorf("Failed to execute data schema initialization migrations: %w", err)
-		}
-
-		if _, err := DB.Exec("PRAGMA user_version = 3;"); err != nil {
-			return fmt.Errorf("Failed to execute migration query: %w", err)
 		}
 	}
 
