@@ -2,37 +2,51 @@ package db
 
 import (
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"premark/persist"
 	"premark/types"
+	"reflect"
 	"strings"
 )
 
 type projectRow struct {
-	ID            string
-	DatasetID     sql.NullString
-	Name          string
-	SchemaObjects string
+	ID                   string
+	DatasetID            sql.NullString
+	Name                 string
+	SchemaObjects        string
+	AllowDuplicateValid  bool
+	MaxValidDuplicate    int
+	IsContinuousScanning bool
 }
 
-const addProjectQuery = "INSERT INTO projects (dataset_id, creator_user_hash, name, schema_objects) VALUES (?, ?, ?, ?) RETURNING id"
-const assignUsersToProjectQuery = "INSERT OR IGNORE INTO project_users (project_id, user_hash) VALUES (?, ?)"
-const getAssignedUsersDataByProjectIdQuery = "SELECT u.payload FROM project_users p JOIN users u ON p.user_hash = u.user_hash WHERE p.project_id = ?"
-const getAllProjectsQuery = "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ?"
-const findProjectByIdQuery = "SELECT id, dataset_id, name, schema_objects FROM projects WHERE creator_user_hash = ? AND id = ?"
-const deleteAssignedUsersFromProjectQuery = "DELETE FROM project_users WHERE project_id = ?"
-const deleteProjectByIdQuery = "DELETE FROM projects WHERE creator_user_hash = ? AND id = ?"
+//go:embed sql/queries/projects
+var projectsQueries embed.FS
 
-func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User) (string, error) {
+//go:embed sql/queries/project_users
+var projectUsersQueries embed.FS
+
+func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User, allowDuplicateValid bool, maxValidDuplicate int, isContinuousScanning bool) (string, error) {
 	schemaBytes, err := json.Marshal(schemaObjects)
 	if err != nil {
 		return "", err
 	}
 
-	var id string
-	err = DB.QueryRow(addProjectQuery, sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes)).Scan(&id)
+	query, err := projectsQueries.ReadFile("sql/queries/projects/add.sql")
 	if err != nil {
 		return "", err
+	}
+
+	var id string
+	err = DB.QueryRow(string(query), sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes), allowDuplicateValid, maxValidDuplicate, isContinuousScanning).Scan(&id)
+	if err != nil {
+		return "", err
+	}
+
+	if len(assignedUsers) == 0 {
+		return id, nil
 	}
 
 	_, hashes, err := AddUsers(assignedUsers, id)
@@ -46,7 +60,12 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(assignUsersToProjectQuery)
+	query, err = projectUsersQueries.ReadFile("sql/queries/project_users/add.sql")
+	if err != nil {
+		return "", err
+	}
+
+	stmt, err := tx.Prepare(string(query))
 	if err != nil {
 		return "", err
 	}
@@ -71,6 +90,9 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 	p["id"] = row.ID
 	p["name"] = row.Name
 	p["schemaObjects"] = schema
+	p["allowDuplicateValid"] = row.AllowDuplicateValid
+	p["maxValidDuplicate"] = row.MaxValidDuplicate
+	p["isContinuousScanning"] = row.IsContinuousScanning
 
 	if !excludeDatasetId {
 		if row.DatasetID.Valid {
@@ -90,7 +112,12 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 	}
 
 	if !excludeUsers {
-		rows, err := DB.Query(getAssignedUsersDataByProjectIdQuery, row.ID)
+		query, err := projectUsersQueries.ReadFile("sql/queries/project_users/find_by_project_id.sql")
+		if err != nil {
+			return nil, err
+		}
+
+		rows, err := DB.Query(string(query), row.ID)
 		if err == nil {
 			defer rows.Close()
 			var users []types.User
@@ -110,7 +137,12 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 }
 
 func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
-	rows, err := DB.Query(getAllProjectsQuery, userHash)
+	query, err := projectsQueries.ReadFile("sql/queries/projects/get_all.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := DB.Query(string(query), userHash)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +151,7 @@ func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
 	projects := make(map[string]any)
 	for rows.Next() {
 		var r projectRow
-		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects); err != nil {
+		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning); err != nil {
 			continue
 		}
 
@@ -133,8 +165,13 @@ func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
 }
 
 func FindProjectById(userHash []byte, id string, withDataset, excludeDatasetId bool) (map[string]any, error) {
+	query, err := projectsQueries.ReadFile("sql/queries/projects/find_by_id.sql")
+	if err != nil {
+		return nil, err
+	}
+
 	var r projectRow
-	err := DB.QueryRow(findProjectByIdQuery, userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects)
+	err = DB.QueryRow(string(query), userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -144,10 +181,45 @@ func FindProjectById(userHash []byte, id string, withDataset, excludeDatasetId b
 	return getProjectWithRelations(userHash, r, withDataset, true, excludeDatasetId)
 }
 
+func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) {
+	query, err := projectsQueries.ReadFile("sql/queries/projects/find_scan_opt_by_id.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	var r struct {
+		allowDuplicateValid  bool
+		maxValidDuplicate    int
+		isContinuousScanning bool
+	}
+	err = DB.QueryRow(string(query), userHash, id).Scan(&r.allowDuplicateValid, &r.maxValidDuplicate, &r.isContinuousScanning)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]any)
+	v := reflect.ValueOf(r)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		value := v.Field(i).Interface()
+		res[field.Name] = value
+	}
+
+	return res, nil
+}
+
 func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, newAssignedUsers []types.User) (int64, error) {
 	var totalChanges int64 = 0
 
-	if len(newAssignedUsers) > 0 {
+	if newAssignedUsers != nil {
 		var filePayloads []filePayload
 		var payloads [][]byte
 		var hashes [][]byte
@@ -175,6 +247,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		}
 		totalChanges += changes
 
+		_ = os.RemoveAll(persist.PublicDir("output", "users", id))
 		for _, fp := range filePayloads {
 			writeTokenFile(fp.Name, fp.TokenBytes, id)
 		}
@@ -214,7 +287,12 @@ func syncProjectUsers(projectId string, newUsers [][]byte, newPayloads [][]byte)
 	defer tx.Rollback()
 
 	if len(newUsers) == 0 {
-		res, err := tx.Exec(deleteAssignedUsersFromProjectQuery, projectId)
+		query, err := projectUsersQueries.ReadFile("sql/queries/project_users/delete_all_by_project_id.sql")
+		if err != nil {
+			return 0, err
+		}
+
+		res, err := tx.Exec(string(query), projectId)
 		if err != nil {
 			return 0, err
 		}
@@ -235,13 +313,21 @@ func syncProjectUsers(projectId string, newUsers [][]byte, newPayloads [][]byte)
 		return 0, err
 	}
 
-	userStmt, err := tx.Prepare(addUserQuery)
+	query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
+	if err != nil {
+		return 0, err
+	}
+	userStmt, err := tx.Prepare(string(query))
 	if err != nil {
 		return 0, err
 	}
 	defer userStmt.Close()
 
-	assignStmt, err := tx.Prepare(assignUsersToProjectQuery)
+	query, err = projectUsersQueries.ReadFile("sql/queries/project_users/add.sql")
+	if err != nil {
+		return 0, err
+	}
+	assignStmt, err := tx.Prepare(string(query))
 	if err != nil {
 		return 0, err
 	}
@@ -260,10 +346,31 @@ func syncProjectUsers(projectId string, newUsers [][]byte, newPayloads [][]byte)
 }
 
 func RemoveProjectById(userHash []byte, id string) (bool, error) {
-	res, err := DB.Exec(deleteProjectByIdQuery, userHash, id)
+	query, err := projectsQueries.ReadFile("sql/queries/projects/delete_by_id.sql")
+	if err != nil {
+		return false, err
+	}
+
+	res, err := DB.Exec(string(query), userHash, id)
 	if err != nil {
 		return false, err
 	}
 	count, err := res.RowsAffected()
 	return count > 0, err
+}
+
+func GetProjectCreatorForUser(userHash []byte) (string, []byte, error) {
+	var pID string
+	var creatorHash []byte
+
+	query, err := projectsQueries.ReadFile("sql/queries/projects/get_project_creator.sql")
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = DB.QueryRow(string(query), userHash).Scan(&pID, &creatorHash)
+	if err == sql.ErrNoRows {
+		return "", nil, nil
+	}
+	return pID, creatorHash, err
 }

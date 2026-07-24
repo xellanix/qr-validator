@@ -3,6 +3,7 @@ package db
 import (
 	"crypto/cipher"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"os"
 	"sync"
@@ -17,18 +18,11 @@ var (
 	datasetGCMErr      error
 )
 
-const addDatasetQuery = "INSERT INTO datasets (creator_user_hash, payload) VALUES (?, ?) RETURNING id"
-const addDatasetRowQuery = "INSERT INTO dataset_rows (dataset_id, key_hash, payload) VALUES (?, ?, ?)"
-const getAllDatasetsQuery = "SELECT id, payload FROM datasets WHERE creator_user_hash = ?"
-const findDatasetByIdQuery = "SELECT payload FROM datasets WHERE creator_user_hash = ? AND id = ?"
-const findDatasetRowsByProjectIdAndKeyHashQuery = "SELECT r.payload FROM dataset_rows r JOIN projects p ON r.dataset_id = p.dataset_id WHERE p.id = ? AND r.key_hash = ?"
-const findDatasetRowsByDatasetIdAndKeyHashQuery = "SELECT payload FROM dataset_rows WHERE dataset_id = ? AND key_hash = ?"
-const findDatasetRowsByProjectIdQuery = "SELECT r.payload FROM dataset_rows r JOIN projects p ON r.dataset_id = p.dataset_id WHERE p.id = ?"
-const findDatasetRowsByDatasetIdQuery = "SELECT payload FROM dataset_rows WHERE dataset_id = ?"
-const updateDatasetByIdQuery = "UPDATE datasets SET payload = ? WHERE creator_user_hash = ? AND id = ?"
-const removeDatasetByIdQuery = "DELETE FROM datasets WHERE creator_user_hash = ? AND id = ?"
-const removeDatasetRowsByDatasetIdAndKeyHashQuery = "DELETE FROM dataset_rows WHERE dataset_id = ? AND key_hash = ?"
-const removeDatasetRowsByDatasetIdQuery = "DELETE FROM dataset_rows WHERE dataset_id = ?"
+//go:embed sql/queries/datasets
+var datasetsQueries embed.FS
+
+//go:embed sql/queries/dataset_rows
+var datasetRowsQueries embed.FS
 
 func getDatasetGCM() (cipher.AEAD, error) {
 	datasetGCMOnce.Do(func() {
@@ -50,8 +44,13 @@ func AddDataset(userHash []byte, dataset types.DatasetPayload, rows []types.Data
 		return "", err
 	}
 
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/add.sql")
+	if err != nil {
+		return "", err
+	}
+
 	var id string
-	err = DB.QueryRow(addDatasetQuery, userHash, payload).Scan(&id)
+	err = DB.QueryRow(string(query), userHash, payload).Scan(&id)
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +92,11 @@ func AddDatasetRows(userHash []byte, datasetId string, rows []types.DatasetRow, 
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(addDatasetRowQuery)
+	query, err := datasetRowsQueries.ReadFile("sql/queries/dataset_rows/add.sql")
+	if err != nil {
+		return 0, err
+	}
+	stmt, err := tx.Prepare(string(query))
 	if err != nil {
 		return 0, err
 	}
@@ -121,7 +124,12 @@ func AddDatasetRows(userHash []byte, datasetId string, rows []types.DatasetRow, 
 }
 
 func GetAllDatasets(userHash []byte) ([]types.DatasetWithRows, error) {
-	rows, err := DB.Query(getAllDatasetsQuery, userHash)
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/get_all.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := DB.Query(string(query), userHash)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +158,13 @@ func GetAllDatasets(userHash []byte) ([]types.DatasetWithRows, error) {
 }
 
 func FindDatasetById(userHash []byte, id string, withRows bool) (*types.DatasetWithRows, error) {
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/find_by_id.sql")
+	if err != nil {
+		return nil, err
+	}
+
 	var payload []byte
-	err := DB.QueryRow(findDatasetByIdQuery, userHash, id).Scan(&payload)
+	err = DB.QueryRow(string(query), userHash, id).Scan(&payload)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -203,25 +216,37 @@ func FindDatasetRows(id string, isProject bool, keyHash any) ([]types.DatasetRow
 		}
 	}
 
-	var query string
+	var query []byte
 	var args []any
 	if len(kh) > 0 {
 		if isProject {
-			query = findDatasetRowsByProjectIdAndKeyHashQuery
+			query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_by_project_id_and_key_hash.sql")
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			query = findDatasetRowsByDatasetIdAndKeyHashQuery
+			query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_by_dataset_id_and_key_hash.sql")
+			if err != nil {
+				return nil, err
+			}
 		}
 		args = append(args, id, kh)
 	} else {
 		if isProject {
-			query = findDatasetRowsByProjectIdQuery
+			query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_by_project_id.sql")
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			query = findDatasetRowsByDatasetIdQuery
+			query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_by_dataset_id.sql")
+			if err != nil {
+				return nil, err
+			}
 		}
 		args = append(args, id)
 	}
 
-	rows, err := DB.Query(query, args...)
+	rows, err := DB.Query(string(query), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +303,11 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 		return 0, err
 	}
 
-	res, err := DB.Exec(updateDatasetByIdQuery, payload, userHash, id)
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/update_by_id.sql")
+	if err != nil {
+		return 0, err
+	}
+	res, err := DB.Exec(string(query), payload, userHash, id)
 	if err != nil {
 		return 0, err
 	}
@@ -286,7 +315,11 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 }
 
 func RemoveDatasetById(userHash []byte, id string) (bool, error) {
-	res, err := DB.Exec(removeDatasetByIdQuery, userHash, id)
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/delete_by_id.sql")
+	if err != nil {
+		return false, err
+	}
+	res, err := DB.Exec(string(query), userHash, id)
 	if err != nil {
 		return false, err
 	}
@@ -297,11 +330,20 @@ func RemoveDatasetById(userHash []byte, id string) (bool, error) {
 func RemoveDatasetRows(datasetId string, keyHash ...[]byte) (bool, error) {
 	var res sql.Result
 	var err error
+	var query []byte
+
 	if len(keyHash) > 0 && len(keyHash[0]) > 0 {
-		res, err = DB.Exec(removeDatasetRowsByDatasetIdAndKeyHashQuery, datasetId, keyHash[0])
+		query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/delete_by_dataset_id_and_key_hash.sql")
+		if err == nil {
+			res, err = DB.Exec(string(query), datasetId, keyHash[0])
+		}
 	} else {
-		res, err = DB.Exec(removeDatasetRowsByDatasetIdQuery, datasetId)
+		query, err = datasetRowsQueries.ReadFile("sql/queries/dataset_rows/delete_by_dataset_id.sql")
+		if err == nil {
+			res, err = DB.Exec(string(query), datasetId)
+		}
 	}
+
 	if err != nil {
 		return false, err
 	}

@@ -5,6 +5,7 @@ import { QRCanvas, frontalCamera } from "qr/dom.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validate } from "@/lib/validation";
 import { useHistoryStore } from "@/stores/history.store";
+import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { useUserStore } from "@/stores/user.store";
 import { useValidateStore } from "@/stores/validate.store";
@@ -101,14 +102,24 @@ export function ScannerView() {
                             return resumeScan();
                         }
 
-                        const isDuplicate = useHistoryStore
-                            .getState()
-                            .entries.some(
-                                (entry) => entry.data === res && entry.status === "Valid",
-                            );
-                        if (isDuplicate) {
-                            setLastMessage(`Skipped: Already in history.`);
-                            return resumeScan();
+                        const project = useProjectStore.getState().getProject();
+                        let totalDuplicates = 0;
+                        for (const entry of useHistoryStore.getState().entries) {
+                            if (entry.data === res && entry.status === "Valid") {
+                                if (project?.allowDuplicateValid) {
+                                    if (++totalDuplicates > project.maxValidDuplicate) {
+                                        setLastMessage(`Skipped: Too many valid duplicates.`);
+                                        return resumeScan();
+                                    }
+                                } else {
+                                    setLastMessage(`Skipped: Already in history.`);
+                                    return resumeScan();
+                                }
+                            }
+                        }
+
+                        if (project && !project.isContinuousScanning) {
+                            stopScanner();
                         }
 
                         setLastMessage(`Found: ${res.substring(0, 30)}...`);
@@ -121,7 +132,7 @@ export function ScannerView() {
             // No code found, request the next animation frame to continue
             requestRef.current = requestAnimationFrame(scanFrame);
         }
-    }, []);
+    }, [stopScanner]);
 
     useEffect(() => {
         // Stop scanning if the component is no longer in a scanning state

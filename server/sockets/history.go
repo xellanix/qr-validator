@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"premark/db"
 	"premark/lib"
 	"premark/persist"
 	"premark/types"
@@ -88,21 +89,44 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		duplicatedValidator := ""
+		var (
+			allowDuplicateValid bool
+			maxValidDuplicate   int
+		)
+		{
+			creatorBytes := ctx.UserHashBytes
+			pID, cHash, err := db.GetProjectCreatorForUser(ctx.UserHashBytes)
+			if err == nil && len(cHash) > 0 {
+				creatorBytes = cHash
+			}
+			project, _ := db.FindProjectScanOptById(creatorBytes, pID)
+			if project != nil {
+				allowDuplicateValid = project["allowDuplicateValid"].(bool)
+				maxValidDuplicate = project["maxValidDuplicate"].(int)
+			}
+		}
+
 		historyMu.RLock()
-		isDuplicate := false
+		duplicatedMsg := ""
+		totalDuplicates := 0
 		for _, entry := range scanHistory {
 			if entry.Data == qrData && entry.Status == "Valid" {
-				duplicatedValidator = entry.ValidatorName
-				isDuplicate = true
-				break
+				if allowDuplicateValid {
+					totalDuplicates++
+					if totalDuplicates > maxValidDuplicate {
+						duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated more than %d times", qrData, maxValidDuplicate)
+						break
+					}
+				} else {
+					duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated by %s", qrData, entry.ValidatorName)
+					break
+				}
 			}
 		}
 		historyMu.RUnlock()
 
-		if isDuplicate {
-			msg := fmt.Sprintf("This entry data (%s) has already been validated by %s", qrData, duplicatedValidator)
-			invokeAck(args, types.SocketResponse{Status: "info", Message: msg})
+		if duplicatedMsg != "" {
+			invokeAck(args, types.SocketResponse{Status: "info", Message: duplicatedMsg})
 			return
 		}
 

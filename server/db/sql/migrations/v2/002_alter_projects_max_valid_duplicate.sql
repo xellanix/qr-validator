@@ -1,0 +1,2 @@
+ALTER TABLE projects
+ADD COLUMN max_valid_duplicate INTEGER NOT NULL DEFAULT 2;

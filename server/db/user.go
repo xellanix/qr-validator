@@ -4,6 +4,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"embed"
 	"errors"
 	"fmt"
 	"math/big"
@@ -30,10 +31,10 @@ type filePayload struct {
 	TokenBytes []byte
 }
 
-const addUserQuery = "INSERT OR IGNORE INTO users (user_hash, payload) VALUES (?, ?)"
-const findUserByTokenQuery = "SELECT payload FROM users WHERE user_hash = ?"
-const deleteUserByTokenQuery = "DELETE FROM users WHERE user_hash = ?"
-const getProjectCreatorForUserQuery = "SELECT pu.project_id, p.creator_user_hash FROM project_users pu JOIN projects p ON pu.project_id = p.id WHERE pu.user_hash = ?"
+const getProjectCreatorForUserQuery = ""
+
+//go:embed sql/queries/users
+var usersQueries embed.FS
 
 func getAuthGCM() (cipher.AEAD, error) {
 	authGCMOnce.Do(func() {
@@ -89,7 +90,11 @@ func AddUser(user any, optionalPayload []byte) ([]byte, error) {
 		if !ok {
 			return nil, errors.New("Invalid user_hash type assertion mapping")
 		}
-		res, err := DB.Exec(addUserQuery, hash, optionalPayload)
+		query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
+		if err != nil {
+			return nil, err
+		}
+		res, err := DB.Exec(string(query), hash, optionalPayload)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +121,11 @@ func AddUser(user any, optionalPayload []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	res, err := DB.Exec(addUserQuery, hash, payload)
+	query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
+	if err != nil {
+		return nil, err
+	}
+	res, err := DB.Exec(string(query), hash, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +150,11 @@ func AddUsers(users []types.User, projectId string) ([][]byte, [][]byte, error) 
 	var hashes [][]byte
 	var tokensBytes [][]byte
 
-	stmt, err := tx.Prepare(addUserQuery)
+	query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
+	if err != nil {
+		return nil, nil, err
+	}
+	stmt, err := tx.Prepare(string(query))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -208,8 +221,13 @@ func FindUserByToken(rawToken any) (*types.User, error) {
 		return nil, err
 	}
 
+	query, err := usersQueries.ReadFile("sql/queries/users/find_by_token.sql")
+	if err != nil {
+		return nil, err
+	}
+
 	var payload []byte
-	err = DB.QueryRow(findUserByTokenQuery, hash).Scan(&payload)
+	err = DB.QueryRow(string(query), hash).Scan(&payload)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -224,7 +242,11 @@ func RemoveUserByToken(rawToken any) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	res, err := DB.Exec(deleteUserByTokenQuery, hash)
+	query, err := usersQueries.ReadFile("sql/queries/users/delete_by_token.sql")
+	if err != nil {
+		return false, err
+	}
+	res, err := DB.Exec(string(query), hash)
 	if err != nil {
 		return false, err
 	}
@@ -238,15 +260,4 @@ func RemoveUserByFile(filePath string) (bool, error) {
 		return false, nil
 	}
 	return RemoveUserByToken(bytes)
-}
-
-func GetProjectCreatorForUser(userHash []byte) (string, []byte, error) {
-	var pID string
-	var creatorHash []byte
-
-	err := DB.QueryRow(getProjectCreatorForUserQuery, userHash).Scan(&pID, &creatorHash)
-	if err == sql.ErrNoRows {
-		return "", nil, nil
-	}
-	return pID, creatorHash, err
 }

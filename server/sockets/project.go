@@ -113,10 +113,13 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		}
 
 		var pData struct {
-			Name          string               `json:"name"`
-			DatasetID     string               `json:"datasetId"`
-			SchemaObjects []types.SchemaObject `json:"schemaObjects"`
-			Users         []types.User         `json:"users"`
+			Name                 string               `json:"name"`
+			DatasetID            string               `json:"datasetId"`
+			SchemaObjects        []types.SchemaObject `json:"schemaObjects"`
+			Users                []types.User         `json:"users"`
+			AllowDuplicateValid  bool                 `json:"allowDuplicateValid"`
+			MaxValidDuplicate    int                  `json:"maxValidDuplicate"`
+			IsContinuousScanning bool                 `json:"isContinuousScanning"`
 		}
 		var forward struct {
 			Columns  map[string]string `json:"columns"`
@@ -129,20 +132,23 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		_ = json.Unmarshal(b1, &pData)
 		_ = json.Unmarshal(b2, &forward)
 
-		pID, err := db.AddProject(ctx.UserHashBytes, pData.DatasetID, pData.Name, pData.SchemaObjects, pData.Users)
+		pID, err := db.AddProject(ctx.UserHashBytes, pData.DatasetID, pData.Name, pData.SchemaObjects, pData.Users, pData.AllowDuplicateValid, pData.MaxValidDuplicate, pData.IsContinuousScanning)
 		success := err == nil && pID != ""
 
 		var out any
 		if success {
 			out = map[string]any{
-				`id`:            pID,
-				`name`:          pData.Name,
-				`datasetId`:     pData.DatasetID,
-				`columns`:       forward.Columns,
-				`key`:           forward.Key,
-				`keyLabel`:      forward.KeyLabel,
-				`schemaObjects`: pData.SchemaObjects,
-				`users`:         pData.Users,
+				`id`:                   pID,
+				`name`:                 pData.Name,
+				`datasetId`:            pData.DatasetID,
+				`columns`:              forward.Columns,
+				`key`:                  forward.Key,
+				`keyLabel`:             forward.KeyLabel,
+				`schemaObjects`:        pData.SchemaObjects,
+				`users`:                pData.Users,
+				`allowDuplicateValid`:  pData.AllowDuplicateValid,
+				`maxValidDuplicate`:    pData.MaxValidDuplicate,
+				`isContinuousScanning`: pData.IsContinuousScanning,
 			}
 		}
 		io.To(socket.Room(ctx.UserHashBase64)).Emit("server:project:add", out, success)

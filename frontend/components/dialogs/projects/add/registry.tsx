@@ -1,6 +1,7 @@
 import { ColumnsSection } from "@/components/dialogs/projects/add/contents/columns";
 import { DataSourceSection } from "@/components/dialogs/projects/add/contents/data-source";
 import { FinalSection } from "@/components/dialogs/projects/add/contents/final";
+import { InputProcessSection } from "@/components/dialogs/projects/add/contents/input-process";
 import { InputSchemaSection } from "@/components/dialogs/projects/add/contents/input-schema";
 import { ProcessSection } from "@/components/dialogs/projects/add/contents/process";
 import { ProjectDetailsSection } from "@/components/dialogs/projects/add/contents/project-details";
@@ -31,24 +32,30 @@ export const STEP_LIST = [
     },
     {
         id: "5",
+        title: "Configure Input Processing",
+        content: <InputProcessSection />,
+        isOptional: true,
+    },
+    {
+        id: "6",
         title: "Assign Operators & Users",
         content: <AssignUsersSection />,
     },
     {
-        id: "6",
+        id: "7",
         title: "Review Summary",
         content: <SummarySection />,
         nextButton: "Process",
     },
     {
-        id: "7",
+        id: "8",
         title: "Processing Data",
         content: <ProcessSection />,
         nextButton: 1,
         prevButton: 1,
     },
     {
-        id: "8",
+        id: "9",
         title: "",
         content: <FinalSection />,
         nextButton: 0,
