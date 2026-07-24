@@ -5,6 +5,8 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"premark/persist"
 	"premark/types"
 	"reflect"
 	"strings"
@@ -41,6 +43,10 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 	err = DB.QueryRow(string(query), sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes), allowDuplicateValid, maxValidDuplicate, isContinuousScanning).Scan(&id)
 	if err != nil {
 		return "", err
+	}
+
+	if len(assignedUsers) == 0 {
+		return id, nil
 	}
 
 	_, hashes, err := AddUsers(assignedUsers, id)
@@ -213,7 +219,7 @@ func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) 
 func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, newAssignedUsers []types.User) (int64, error) {
 	var totalChanges int64 = 0
 
-	if len(newAssignedUsers) > 0 {
+	if newAssignedUsers != nil {
 		var filePayloads []filePayload
 		var payloads [][]byte
 		var hashes [][]byte
@@ -241,6 +247,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		}
 		totalChanges += changes
 
+		_ = os.RemoveAll(persist.PublicDir("output", "users", id))
 		for _, fp := range filePayloads {
 			writeTokenFile(fp.Name, fp.TokenBytes, id)
 		}
