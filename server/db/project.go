@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"premark/persist"
@@ -120,7 +121,7 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 		rows, err := DB.Query(string(query), row.ID)
 		if err == nil {
 			defer rows.Close()
-			var users []types.User
+			users := make([]types.User, 0)
 			for rows.Next() {
 				var payload []byte
 				if err := rows.Scan(&payload); err == nil {
@@ -242,7 +243,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		}
 
 		changes, err := syncProjectUsers(id, hashes, payloads)
-		if err != nil || changes == 0 {
+		if err != nil {
 			return 0, err
 		}
 		totalChanges += changes
@@ -296,7 +297,22 @@ func syncProjectUsers(projectId string, newUsers [][]byte, newPayloads [][]byte)
 		if err != nil {
 			return 0, err
 		}
-		return res.RowsAffected()
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		// Commit the transaction before returning
+		if err := tx.Commit(); err != nil {
+			return 0, err
+		}
+
+		return rowsAffected, nil
+	}
+
+	if len(newUsers) != len(newPayloads) {
+		return 0, errors.New("newUsers and newPayloads must be the same length")
 	}
 
 	placeholders := make([]string, len(newUsers))
