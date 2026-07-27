@@ -4,7 +4,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { QRCanvas, frontalCamera } from "qr/dom.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validate } from "@/lib/validation";
-import { useHistoryStore } from "@/stores/history.store";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { useUserStore } from "@/stores/user.store";
@@ -82,51 +81,48 @@ export function ScannerView() {
             videoRef.current.pause(); // Pause video to "freeze" on the scanned code
             // QR code found!
             console.log("QR code scanned:", frame);
-            useSocketStore
-                .getState()
-                .emitAck<string>("client:security:decrypt", frame)
-                .then(
-                    (res) => {
-                        const resumeScan = () => {
-                            videoRef.current?.play().then(
-                                () => (requestRef.current = requestAnimationFrame(scanFrame)),
-                                () => {},
-                            );
-                        };
+            void (async () => {
+                const resumeScan = () => {
+                    videoRef.current?.play().then(
+                        () => (requestRef.current = requestAnimationFrame(scanFrame)),
+                        () => {},
+                    );
+                };
 
-                        if (!res) return resumeScan(); // Resume scanning after a failed validation
-
-                        const schemaValidation = validate(res);
-                        if (!schemaValidation.success) {
-                            setLastMessage(schemaValidation.error.message);
-                            return resumeScan();
-                        }
-
-                        const project = useProjectStore.getState().getProject();
-                        let totalDuplicates = 0;
-                        for (const entry of useHistoryStore.getState().entries) {
-                            if (entry.data === res && entry.status === "Valid") {
-                                if (project?.allowDuplicateValid) {
-                                    if (++totalDuplicates > project.maxValidDuplicate) {
-                                        setLastMessage(`Skipped: Too many valid duplicates.`);
-                                        return resumeScan();
-                                    }
-                                } else {
-                                    setLastMessage(`Skipped: Already in history.`);
-                                    return resumeScan();
-                                }
-                            }
-                        }
-
-                        if (project && !project.isContinuousScanning) {
-                            stopScanner();
-                        }
-
-                        setLastMessage(`Found: ${res.substring(0, 30)}...`);
-                        useValidateStore.getState().setCandidate(schemaValidation.value);
-                    },
-                    () => {},
+                const project = useProjectStore.getState().getProject();
+                const emitAck = useSocketStore.getState().emitAck;
+                const res = await emitAck<{
+                    decrypted: string;
+                    duplicatedCode: number;
+                }>(
+                    "client:history:check:duplicate",
+                    frame,
+                    project?.allowDuplicateValid ?? false,
+                    project?.maxValidDuplicate || 2,
                 );
+                if (res === undefined) {
+                    return resumeScan();
+                } else if (res.duplicatedCode === 1) {
+                    setLastMessage(`Skipped: Too many valid duplicates.`);
+                    return resumeScan();
+                } else if (res.duplicatedCode === 2) {
+                    setLastMessage(`Skipped: Already in history.`);
+                    return resumeScan();
+                }
+
+                const schemaValidation = validate(res.decrypted);
+                if (!schemaValidation.success) {
+                    setLastMessage(schemaValidation.error.message);
+                    return resumeScan();
+                }
+
+                if (project && !project.isContinuousScanning) {
+                    stopScanner();
+                }
+
+                setLastMessage(`Found: ${res.decrypted.substring(0, 30)}...`);
+                useValidateStore.getState().setCandidate(schemaValidation.value);
+            })();
         } else {
             setLastMessage("Scanner active...");
             // No code found, request the next animation frame to continue

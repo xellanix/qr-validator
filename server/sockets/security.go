@@ -8,6 +8,11 @@ import (
 	"github.com/zishang520/socket.io/servers/socket/v3"
 )
 
+func decryptUserData(dataStr string) (string, error) {
+	gcm := getUserDataGCM()
+	return lib.DecryptData(dataStr, gcm)
+}
+
 func registerSecurityHandlers(client *socket.Socket) {
 	client.On("client:security:decrypt", func(args ...any) {
 		if len(args) < 2 {
@@ -21,8 +26,7 @@ func registerSecurityHandlers(client *socket.Socket) {
 			return
 		}
 
-		gcm := getUserDataGCM()
-		decrypted, err := lib.DecryptData(dataStr, gcm)
+		decrypted, err := decryptUserData(dataStr)
 		if err != nil {
 			invokeAck(args, types.SocketResponse{Status: "error", Error: "Decryption failed."})
 			return

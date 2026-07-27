@@ -64,6 +64,32 @@ func syncHistoryToDisk() {
 	}
 }
 
+func checkIfDuplicate(qrData string, allowDuplicateValid bool, maxValidDuplicate int) (string, int) {
+	historyMu.RLock()
+	duplicatedMsg := ""
+	duplicatedCode := 0
+	totalDuplicates := 0
+	for _, entry := range scanHistory {
+		if entry.Data == qrData && entry.Status == "Valid" {
+			if allowDuplicateValid {
+				totalDuplicates++
+				if totalDuplicates > maxValidDuplicate {
+					duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated more than %d times", qrData, maxValidDuplicate)
+					duplicatedCode = 1
+					break
+				}
+			} else {
+				duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated by %s", qrData, entry.ValidatorName)
+				duplicatedCode = 2
+				break
+			}
+		}
+	}
+	historyMu.RUnlock()
+
+	return duplicatedMsg, duplicatedCode
+}
+
 func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 	client.On("client:history:init", func(args ...any) {
 		ctx := client.Data().(*types.SocketData)
@@ -73,6 +99,36 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 		historyMu.RLock()
 		defer historyMu.RUnlock()
 		client.Emit("server:history:update", scanHistory)
+	})
+
+	client.On("client:history:check:duplicate", func(args ...any) {
+		if len(args) < 4 {
+			return
+		}
+		qrData, _ := args[0].(string)
+		allowDuplicateValid, _ := args[1].(bool)
+		maxValidDuplicate, _ := args[2].(int)
+
+		ctx := client.Data().(*types.SocketData)
+		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanScan {
+			msg := fmt.Sprintf("Unauthorized check attempt by user: %s", ctx.User.Name)
+			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
+			return
+		}
+
+		decrypted, err := decryptUserData(qrData)
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Decryption failed."})
+			return
+		}
+
+		_, duplicatedCode := checkIfDuplicate(decrypted, allowDuplicateValid, maxValidDuplicate)
+
+		res := map[string]any{
+			"decrypted":      decrypted,
+			"duplicatedCode": duplicatedCode,
+		}
+		invokeAck(args, types.SocketResponse{Status: "success", Data: res})
 	})
 
 	client.On("client:history:validation", func(args ...any) {
@@ -106,24 +162,7 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			}
 		}
 
-		historyMu.RLock()
-		duplicatedMsg := ""
-		totalDuplicates := 0
-		for _, entry := range scanHistory {
-			if entry.Data == qrData && entry.Status == "Valid" {
-				if allowDuplicateValid {
-					totalDuplicates++
-					if totalDuplicates > maxValidDuplicate {
-						duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated more than %d times", qrData, maxValidDuplicate)
-						break
-					}
-				} else {
-					duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated by %s", qrData, entry.ValidatorName)
-					break
-				}
-			}
-		}
-		historyMu.RUnlock()
+		duplicatedMsg, _ := checkIfDuplicate(qrData, allowDuplicateValid, maxValidDuplicate)
 
 		if duplicatedMsg != "" {
 			invokeAck(args, types.SocketResponse{Status: "info", Message: duplicatedMsg})
