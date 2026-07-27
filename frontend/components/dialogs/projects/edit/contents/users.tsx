@@ -1,4 +1,4 @@
-import type { User } from "~/types/user";
+import type { User } from "@/types/user";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useProjectStore } from "@/stores/project.store";

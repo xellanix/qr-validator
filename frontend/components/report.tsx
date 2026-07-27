@@ -1,5 +1,5 @@
-import type { DatasetRow } from "~/types/dataset";
 import type { BlobBuffer, ScanEntry, ScanStatus } from "@/types";
+import type { DatasetRow } from "@/types/dataset";
 import {
     ArrowDown01Icon,
     ArrowDownZeroOneIcon,

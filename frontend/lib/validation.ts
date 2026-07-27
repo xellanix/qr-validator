@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { DatasetRowValue } from "~/types/dataset";
+import type { DatasetRowValue } from "@/types/dataset";
 import { ZodError } from "zod";
 import { useProjectStore } from "@/stores/project.store";
 

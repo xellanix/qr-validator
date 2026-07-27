@@ -1,4 +1,4 @@
-import type { DatasetPayload } from "~/types/dataset";
+import type { DatasetPayload } from "@/types/dataset";
 import { Idea01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useRef, useState } from "react";

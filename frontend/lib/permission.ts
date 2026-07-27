@@ -1,5 +1,5 @@
-import type { User } from "~/types/user";
 import type { Permissions } from "@/types/permission";
+import type { User } from "@/types/user";
 
 export const readOnlyPermission: Permissions = {
     canScan: false,

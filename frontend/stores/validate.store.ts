@@ -1,4 +1,4 @@
-import type { DatasetRowValue } from "~/types/dataset";
+import type { DatasetRowValue } from "@/types/dataset";
 import { create } from "zustand";
 
 interface ValidateState {

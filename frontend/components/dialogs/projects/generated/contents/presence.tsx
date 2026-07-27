@@ -1,4 +1,4 @@
-import type { PresenceContent } from "~/types/generated-contents";
+import type { PresenceContent } from "@/types/generated-contents";
 import type { ProjectItem } from "@/types/project";
 import { Download01Icon, Idea01Icon, Refresh01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";

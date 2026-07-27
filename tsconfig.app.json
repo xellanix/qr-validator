@@ -27,10 +27,9 @@
         /* Import paths */
         "paths": {
             "@/*": ["./frontend/*"],
-            "~/*": ["./shared/*"],
             "#/*": ["./*"]
         }
     },
-    "include": ["frontend", "shared"],
+    "include": ["frontend"],
     "exclude": ["server"]
 }

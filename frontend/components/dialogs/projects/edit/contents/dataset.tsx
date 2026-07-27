@@ -1,4 +1,4 @@
-import type { DataContentType } from "~/types/dataset";
+import type { DataContentType } from "@/types/dataset";
 import type { ProjectItem } from "@/types/project";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
