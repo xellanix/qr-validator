@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"premark/lib"
 	"premark/persist"
 	"premark/types"
 	"reflect"
@@ -123,9 +124,11 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 			defer rows.Close()
 			users := make([]types.User, 0)
 			for rows.Next() {
+				var rawHash []byte
 				var payload []byte
-				if err := rows.Scan(&payload); err == nil {
+				if err := rows.Scan(&rawHash, &payload); err == nil {
 					if u, err := GetUser(payload); err == nil && u != nil {
+						u.Hash = lib.BytesToBase64(rawHash)
 						users = append(users, *u)
 					}
 				}
@@ -226,9 +229,29 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		var hashes [][]byte
 
 		for _, u := range newAssignedUsers {
-			hash, tokenBytes, token, err := CreateUserHash(u)
-			if err != nil {
-				return 0, err
+			var hash []byte
+			var tokenBytes []byte
+			var token string
+
+			// Existing user with stable hash
+			if u.Hash != "" && !strings.HasPrefix(u.Hash, "temp_hash_") {
+				rawHash, err := lib.Base64ToBytes(u.Hash)
+				if err == nil && len(rawHash) > 0 {
+					hash = rawHash
+					tokenBytes, token, err = CreateUserToken(u)
+					if err != nil {
+						return 0, err
+					}
+				}
+			}
+
+			// New user without hash (or fallback)
+			if len(hash) == 0 {
+				h, tb, tk, err := CreateUserHash(u)
+				if err != nil {
+					return 0, err
+				}
+				hash, tokenBytes, token = h, tb, tk
 			}
 
 			payloadMap := map[string]string{"token": token}
@@ -277,6 +300,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 	if err != nil {
 		return 0, err
 	}
+
 	return totalChanges + dbChanges, nil
 }
 

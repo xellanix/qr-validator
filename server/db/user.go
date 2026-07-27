@@ -31,8 +31,6 @@ type filePayload struct {
 	TokenBytes []byte
 }
 
-const getProjectCreatorForUserQuery = ""
-
 //go:embed sql/queries/users
 var usersQueries embed.FS
 
@@ -66,16 +64,25 @@ func writeTokenFile(name string, tokenBytes []byte, projectId string) error {
 	return os.WriteFile(outPath, tokenBytes, 0644)
 }
 
-func CreateUserHash(user types.User) ([]byte, []byte, string, error) {
+func CreateUserToken(user types.User) ([]byte, string, error) {
+	user.Hash = ""
 	authGcm, err := getAuthGCM()
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	tokenBytes, err := encryptJSON(user, authGcm)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	token := lib.BytesToBase64(tokenBytes)
+	return tokenBytes, token, nil
+}
+
+func CreateUserHash(user types.User) ([]byte, []byte, string, error) {
+	tokenBytes, token, err := CreateUserToken(user)
+	if err != nil {
+		return nil, nil, "", err
+	}
 	hash, err := lib.CreateSearchHash(tokenBytes)
 	if err != nil {
 		return nil, nil, "", err

@@ -1,4 +1,5 @@
 SELECT
+    u.user_hash,
     u.payload
 FROM
     project_users p
