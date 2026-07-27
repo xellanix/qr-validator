@@ -17,6 +17,7 @@ import (
 // MigrateEnv checks for missing environment keys, generates secure defaults,
 // and atomically appends them to the local .env file.
 func MigrateEnv() error {
+	fmt.Println("> Migrating environment variables...")
 	envPath := persist.ExecDir(".env")
 
 	// Attempt to load existing .env file into the process environment.

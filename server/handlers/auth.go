@@ -55,12 +55,12 @@ func HandleCheckAuth(c fiber.Ctx) error {
 }
 
 func HandleSignIn(c fiber.Ctx) error {
-	bodyBytes := c.Body()
-	if len(bodyBytes) == 0 {
+	rawHash := c.Body()
+	if len(rawHash) == 0 {
 		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized: Invalid User Id")
 	}
 
-	user, err := db.FindUserByToken(bodyBytes)
+	user, err := db.FindUserByHash(rawHash)
 	if err != nil || user == nil {
 		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized: Invalid User Id")
 	}
@@ -70,10 +70,6 @@ func HandleSignIn(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
-	rawHash, err := lib.CreateSearchHash(bodyBytes)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
-	}
 	userHash := lib.BytesToBase64(rawHash)
 
 	SetSecurityCookies(c, jwtStr, userHash)
@@ -90,12 +86,12 @@ func HandleSignUp(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Bad Request: Invalid User Name")
 	}
 
-	userIdBytes, err := db.AddUser(types.User{Name: strings.TrimSpace(req.Name), AuthorizeLevel: 3}, nil)
-	if err != nil || len(userIdBytes) == 0 {
+	rawHash, err := db.AddUser(types.User{Name: strings.TrimSpace(req.Name), AuthorizeLevel: 3})
+	if err != nil || len(rawHash) == 0 {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
-	user, err := db.FindUserByToken(userIdBytes)
+	user, err := db.FindUserByHash(rawHash)
 	if err != nil || user == nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
@@ -105,10 +101,6 @@ func HandleSignUp(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
-	rawHash, err := lib.CreateSearchHash(userIdBytes)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
-	}
 	userHash := lib.BytesToBase64(rawHash)
 
 	SetSecurityCookies(c, jwtStr, userHash)

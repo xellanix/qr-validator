@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"embed"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -27,8 +26,8 @@ var (
 )
 
 type filePayload struct {
-	Name       string
-	TokenBytes []byte
+	Name     string
+	UserHash []byte
 }
 
 //go:embed sql/queries/users
@@ -43,7 +42,7 @@ func getAuthGCM() (cipher.AEAD, error) {
 	return authGCMInstance, authGCMErr
 }
 
-func writeTokenFile(name string, tokenBytes []byte, projectId string) error {
+func writeUserHashFile(name string, hash []byte, projectId string) error {
 	now := time.Now()
 	randVal, _ := rand.Int(rand.Reader, big.NewInt(1000))
 	timemark := fmt.Sprintf("%04d%02d%02d%02d%02d%02d%03d%03d",
@@ -54,14 +53,14 @@ func writeTokenFile(name string, tokenBytes []byte, projectId string) error {
 	)
 
 	reg := regexp.MustCompile(`[^a-zA-Z0-9]`)
-	fileName := fmt.Sprintf("%s_%s.key", strings.ToLower(reg.ReplaceAllString(name, "_")), timemark)
+	fileName := fmt.Sprintf("%s_%s_v2.key", strings.ToLower(reg.ReplaceAllString(name, "_")), timemark)
 
 	// Utilizes PublicDir from previous persist steps
 	outPath := persist.PublicDir("output", "users", projectId, fileName)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(outPath, tokenBytes, 0644)
+	return os.WriteFile(outPath, hash, 0644)
 }
 
 func CreateUserToken(user types.User) ([]byte, string, error) {
@@ -78,46 +77,20 @@ func CreateUserToken(user types.User) ([]byte, string, error) {
 	return tokenBytes, token, nil
 }
 
-func CreateUserHash(user types.User) ([]byte, []byte, string, error) {
+func CreateUserHash(user types.User) ([]byte, string, error) {
 	tokenBytes, token, err := CreateUserToken(user)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 	hash, err := lib.CreateSearchHash(tokenBytes)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
-	return hash, tokenBytes, token, nil
+	return hash, token, nil
 }
 
-func AddUser(user any, optionalPayload []byte) ([]byte, error) {
-	// If payload is provided explicitly, 'user' parameter behaves as raw user_hash input
-	if len(optionalPayload) > 0 {
-		hash, ok := user.([]byte)
-		if !ok {
-			return nil, errors.New("Invalid user_hash type assertion mapping")
-		}
-		query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
-		if err != nil {
-			return nil, err
-		}
-		res, err := DB.Exec(string(query), hash, optionalPayload)
-		if err != nil {
-			return nil, err
-		}
-		if changes, _ := res.RowsAffected(); changes == 0 {
-			return nil, nil
-		}
-		return hash, nil
-	}
-
-	// Fallback path: 'user' is the primary User layout struct
-	u, ok := user.(types.User)
-	if !ok {
-		return nil, errors.New("Invalid User object mapping structural type")
-	}
-
-	hash, tokenBytes, token, err := CreateUserHash(u)
+func AddUser(user types.User) ([]byte, error) {
+	hash, token, err := CreateUserHash(user)
 	if err != nil {
 		return nil, err
 	}
@@ -140,65 +113,63 @@ func AddUser(user any, optionalPayload []byte) ([]byte, error) {
 		return nil, nil
 	}
 
-	if err := writeTokenFile(u.Name, tokenBytes, ""); err != nil {
+	if err := writeUserHashFile(user.Name, hash, ""); err != nil {
 		return nil, err
 	}
-	return tokenBytes, nil
+	return hash, nil
 }
 
-func AddUsers(users []types.User, projectId string) ([][]byte, [][]byte, error) {
+func AddUsers(users []types.User, projectId string) ([][]byte, error) {
 	tx, err := DB.Begin()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	var filePayloads []filePayload
 	var hashes [][]byte
-	var tokensBytes [][]byte
 
 	query, err := usersQueries.ReadFile("sql/queries/users/add.sql")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	stmt, err := tx.Prepare(string(query))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer stmt.Close()
 
 	for _, u := range users {
-		hash, tokenBytes, token, err := CreateUserHash(u)
+		hash, token, err := CreateUserHash(u)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		payloadMap := map[string]string{"token": token}
 		payload, err := encryptJSON(payloadMap)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
-		filePayloads = append(filePayloads, filePayload{Name: u.Name, TokenBytes: tokenBytes})
-		hashes = append(hashes, hash)
+		filePayloads = append(filePayloads, filePayload{Name: u.Name, UserHash: hash})
 
 		if _, err := stmt.Exec(hash, payload); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	for _, fp := range filePayloads {
-		if err := writeTokenFile(fp.Name, fp.TokenBytes, projectId); err != nil {
-			return nil, nil, err
+		if err := writeUserHashFile(fp.Name, fp.UserHash, projectId); err != nil {
+			return nil, err
 		}
-		tokensBytes = append(tokensBytes, fp.TokenBytes)
+		hashes = append(hashes, fp.UserHash)
 	}
 
-	return tokensBytes, hashes, nil
+	return hashes, nil
 }
 
 func GetUser(payload []byte) (*types.User, error) {
@@ -222,12 +193,7 @@ func GetUser(payload []byte) (*types.User, error) {
 	return decryptJSON[types.User](tokenBytes, authGcm)
 }
 
-func FindUserByToken(rawToken any) (*types.User, error) {
-	hash, err := lib.CreateSearchHash(rawToken)
-	if err != nil {
-		return nil, err
-	}
-
+func FindUserByHash(hash []byte) (*types.User, error) {
 	query, err := usersQueries.ReadFile("sql/queries/users/find_by_token.sql")
 	if err != nil {
 		return nil, err

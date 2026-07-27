@@ -16,7 +16,7 @@ func GetFileByDuplicateIndex(dir string, name string, targetIndex int) (string, 
 
 	// Build the regex pattern to match the generated files
 	// Escaping sanitizedName ensures safety, followed by `_\d+\.key` to match the timemark digits
-	fileRegex, err := regexp.Compile(fmt.Sprintf(`^%s_\d{20}\.key$`, regexp.QuoteMeta(sanitizedName)))
+	fileRegex, err := regexp.Compile(fmt.Sprintf(`^%s_\d{20}_v2\.key$`, regexp.QuoteMeta(sanitizedName)))
 	if err != nil {
 		return "", fmt.Errorf("Failed to compile regex: %w", err)
 	}

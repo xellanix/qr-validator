@@ -13,6 +13,7 @@ func StartMigration() {
 
 	panicOnError(MigrateEnv())
 	panicOnError(MigratePath())
+	panicOnError(MigrateUserKey())
 
 	fmt.Println("Migration complete.")
 	fmt.Println("")

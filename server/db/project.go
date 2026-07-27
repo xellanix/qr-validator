@@ -51,7 +51,7 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 		return id, nil
 	}
 
-	_, hashes, err := AddUsers(assignedUsers, id)
+	hashes, err := AddUsers(assignedUsers, id)
 	if err != nil || len(hashes) == 0 {
 		return "", err
 	}
@@ -230,7 +230,6 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 
 		for _, u := range newAssignedUsers {
 			var hash []byte
-			var tokenBytes []byte
 			var token string
 
 			// Existing user with stable hash
@@ -238,7 +237,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 				rawHash, err := lib.Base64ToBytes(u.Hash)
 				if err == nil && len(rawHash) > 0 {
 					hash = rawHash
-					tokenBytes, token, err = CreateUserToken(u)
+					_, token, err = CreateUserToken(u)
 					if err != nil {
 						return 0, err
 					}
@@ -247,11 +246,11 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 
 			// New user without hash (or fallback)
 			if len(hash) == 0 {
-				h, tb, tk, err := CreateUserHash(u)
+				h, tk, err := CreateUserHash(u)
 				if err != nil {
 					return 0, err
 				}
-				hash, tokenBytes, token = h, tb, tk
+				hash, token = h, tk
 			}
 
 			payloadMap := map[string]string{"token": token}
@@ -261,7 +260,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 			}
 
 			payloads = append(payloads, payload)
-			filePayloads = append(filePayloads, filePayload{Name: u.Name, TokenBytes: tokenBytes})
+			filePayloads = append(filePayloads, filePayload{Name: u.Name, UserHash: hash})
 			hashes = append(hashes, hash)
 		}
 
@@ -273,7 +272,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 
 		_ = os.RemoveAll(persist.PublicDir("output", "users", id))
 		for _, fp := range filePayloads {
-			writeTokenFile(fp.Name, fp.TokenBytes, id)
+			writeUserHashFile(fp.Name, fp.UserHash, id)
 		}
 	}
 
