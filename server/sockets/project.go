@@ -297,17 +297,19 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		id, _ := args[0].(string)
 		ctx := client.Data().(*types.SocketData)
 		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
-			client.Emit("server:response:error", fmt.Sprintf("Unauthorized delete attempt by user: %s", ctx.User.Name))
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Unauthorized delete attempt by user: %s", ctx.User.Name)})
 			return
 		}
 
 		success, err := db.RemoveProjectById(ctx.UserHashBytes, id)
+		var errorMsg string
 		if err == nil && success {
 			rooms := io.To(socket.Room(ctx.UserHashBase64))
 
 			lib.DoLock(&activeIdsMu, func() {
 				pCache, ok := activeIds[ctx.UserHashBase64]
 				if !ok || pCache == nil {
+					errorMsg = fmt.Sprintf("No active project for user: %s", ctx.UserHashBase64)
 					return
 				}
 
@@ -329,7 +331,15 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 				}
 				rooms.Emit("server:project:delete", id)
 			})
+		} else {
+			errorMsg = fmt.Sprintf("Failed to delete project: %s", err.Error())
 		}
+
+		if errorMsg != "" {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: errorMsg})
+			return
+		}
+
 		invokeAck(args, types.SocketResponse{Status: "success", Data: success})
 
 		if err == nil && success {

@@ -18,12 +18,10 @@ export function ProjectDeleteDialog({ setOpenDialog }: { setOpenDialog: (v: bool
     const { invoke, isLocked } = useCallbackLock(async () => {
         const emitAck = useSocketStore.getState().emitAck<boolean>;
         const res = await emitAck("client:project:delete", useProjectStore.getState().deleteId);
-        if (res === undefined) return;
+        if (!res) return;
 
         setOpenDialog(false);
-
-        if (res) toast.success("Project deleted.");
-        else toast.error("Failed to delete project.");
+        toast.success("Project deleted.");
     });
 
     return (
