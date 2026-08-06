@@ -301,6 +301,7 @@ func GetMuMapValue[K comparable, V any](mutex *sync.RWMutex, m map[K]V, key K) (
 	return value, ok
 }
 
+// DoLock executes a function within a lock
 func DoLock(mutex sync.Locker, f func()) {
 	mutex.Lock()
 	defer mutex.Unlock()
