@@ -1,9 +1,9 @@
 export type ScanStatus = "Valid" | "Not Valid";
 export interface ScanEntry {
     id: string;
-    data: string;
-    validatorName: string;
-    validatedAt: string;
+    datasetRow: string;
+    presenceBy: string;
+    createdAt: string;
     status: ScanStatus;
 }
 

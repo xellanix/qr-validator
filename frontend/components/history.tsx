@@ -24,8 +24,12 @@ export function Synchronizer() {
     useEffect(() => {
         if (!socket) return;
 
-        const update = (updatedHistory: ScanEntry[]) => {
-            useHistoryStore.getState().setEntries(updatedHistory ?? []);
+        type UpdatedEntry = Omit<ScanEntry, "createdAt"> & { createdAt: number | string };
+        const update = (updatedHistory: UpdatedEntry[]) => {
+            for (const entry of updatedHistory) {
+                entry.createdAt = new Date(entry.createdAt).toLocaleString();
+            }
+            useHistoryStore.getState().setEntries((updatedHistory as ScanEntry[]) ?? []);
         };
         socket.emit("client:history:init");
         socket.on("server:history:update", update);
@@ -59,8 +63,8 @@ export function HistoryView() {
 
         return history.filter(
             (entry) =>
-                entry.data.toLowerCase().includes(term) ||
-                entry.validatorName.toLowerCase().includes(term),
+                entry.datasetRow.toLowerCase().includes(term) ||
+                entry.presenceBy.toLowerCase().includes(term),
         );
     }, [history, searchTerm]);
 
@@ -131,10 +135,10 @@ function HistoryViewRow({ scan, canDelete }: HistoryViewRowProps) {
     return (
         <TableRow>
             <TableCell className="max-w-50 truncate font-medium whitespace-pre-line sm:max-w-xs">
-                {scan.data}
+                {scan.datasetRow}
             </TableCell>
-            <TableCell>{scan.validatorName}</TableCell>
-            <TableCell>{new Date(scan.validatedAt).toLocaleString()}</TableCell>
+            <TableCell>{scan.presenceBy}</TableCell>
+            <TableCell>{scan.createdAt}</TableCell>
             <TableCell className="text-center">
                 <Badge variant={scan.status === "Valid" ? "default" : "destructive"}>
                     {scan.status}

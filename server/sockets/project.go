@@ -16,11 +16,48 @@ import (
 	"github.com/zishang520/socket.io/servers/socket/v3"
 )
 
+type projectMetadataCache struct {
+	mu        sync.Mutex
+	isDeleted bool
+
+	id          string
+	batchNumber int
+}
+
 var (
 	// Thread-safe map storage contexts for tracking console operational triggers.
 	activeIdsMu sync.RWMutex
-	activeIds   = make(map[string]string)
+	activeIds   = make(map[string]*projectMetadataCache)
 )
+
+func getActiveProject(userHash []byte, userHashBase64 string) (string, []byte, error) {
+	pCache, ok := lib.GetMuMapValue(&activeIdsMu, activeIds, userHashBase64)
+
+	if ok && pCache != nil {
+		pCache.mu.Lock()
+		defer pCache.mu.Unlock()
+		if !pCache.isDeleted && pCache.id != "" {
+			return pCache.id, userHash, nil
+		}
+	}
+
+	pID, uHash, err := db.GetProjectCreatorForUser(userHash)
+	if err == nil && pID != "" {
+		return pID, uHash, nil
+	}
+
+	return "", nil, fmt.Errorf("No active project for user: %s", userHashBase64)
+}
+
+func getCachedBatchNumber(creatorHash string) int {
+	pCache, ok := lib.GetMuMapValue(&activeIdsMu, activeIds, creatorHash)
+	if !ok || pCache == nil {
+		return 0
+	}
+	pCache.mu.Lock()
+	defer pCache.mu.Unlock()
+	return pCache.batchNumber
+}
 
 func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 	client.On("client:project:init", func(args ...any) {
@@ -48,9 +85,15 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 
 		if opt.All {
 			client.Join(socket.Room(creatorBase64))
-			activeIdsMu.RLock()
-			activeID = activeIds[creatorBase64]
-			activeIdsMu.RUnlock()
+			pCache, ok := lib.GetMuMapValue(&activeIdsMu, activeIds, creatorBase64)
+			if ok && pCache != nil {
+				lib.DoLock(&pCache.mu, func() {
+					if pCache.isDeleted || pCache.id == "" {
+						return
+					}
+					activeID = pCache.id
+				})
+			}
 		} else {
 			pID, cHash, err := db.GetProjectCreatorForUser(ctx.UserHashBytes)
 			if err == nil && len(cHash) > 0 {
@@ -58,9 +101,15 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 				creatorBase64 = lib.BytesToBase64(cHash)
 			}
 
-			activeIdsMu.RLock()
-			activeID = activeIds[creatorBase64]
-			activeIdsMu.RUnlock()
+			pCache, ok := lib.GetMuMapValue(&activeIdsMu, activeIds, creatorBase64)
+			if ok && pCache != nil {
+				lib.DoLock(&pCache.mu, func() {
+					if pCache.isDeleted || pCache.id == "" {
+						return
+					}
+					activeID = pCache.id
+				})
+			}
 
 			if pID == "" {
 				client.Join(socket.Room(creatorBase64))
@@ -227,13 +276,18 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		client.Emit("server:project:update", id, mergedResult, true)
 		client.To(socket.Room(ctx.UserHashBase64)).Emit("server:project:update", id, mergedResult)
 
-		activeIdsMu.RLock()
-		currentActive := activeIds[ctx.UserHashBase64]
-		activeIdsMu.RUnlock()
-
-		if id == currentActive {
-			io.To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, id))).Emit("server:project:update", id, mergedResult)
+		pCache, ok := lib.GetMuMapValue(&activeIdsMu, activeIds, ctx.UserHashBase64)
+		if !ok || pCache == nil {
+			return
 		}
+
+		lib.DoLock(&pCache.mu, func() {
+			if pCache.isDeleted || id != pCache.id {
+				return
+			}
+
+			io.To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, id))).Emit("server:project:update", id, mergedResult)
+		})
 	})
 
 	client.On("client:project:delete", func(args ...any) {
@@ -250,13 +304,31 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		success, err := db.RemoveProjectById(ctx.UserHashBytes, id)
 		if err == nil && success {
 			rooms := io.To(socket.Room(ctx.UserHashBase64))
-			activeIdsMu.Lock()
-			if id == activeIds[ctx.UserHashBase64] {
-				delete(activeIds, ctx.UserHashBase64)
-				rooms = rooms.To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, id)))
-			}
-			activeIdsMu.Unlock()
-			rooms.Emit("server:project:delete", id)
+
+			lib.DoLock(&activeIdsMu, func() {
+				pCache, ok := activeIds[ctx.UserHashBase64]
+				if !ok || pCache == nil {
+					return
+				}
+
+				isDeleted := func() bool {
+					pCache.mu.Lock()
+					defer pCache.mu.Unlock()
+
+					if id == pCache.id {
+						pCache.isDeleted = true
+						return true
+					}
+
+					return false
+				}
+
+				if isDeleted() {
+					delete(activeIds, ctx.UserHashBase64)
+					rooms = rooms.To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, id)))
+				}
+				rooms.Emit("server:project:delete", id)
+			})
 		}
 		invokeAck(args, types.SocketResponse{Status: "success", Data: success})
 
@@ -267,29 +339,95 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		}
 	})
 
-	client.On("client:project:activation:toggle", func(args ...any) {
+	client.On("client:project:activation:batch_number", func(args ...any) {
 		if len(args) < 2 {
 			return
 		}
 		id, _ := args[0].(string)
-		checked, _ := args[1].(bool)
 
 		ctx := client.Data().(*types.SocketData)
 		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
-			client.Emit("server:response:error", fmt.Sprintf("Unauthorized activation toggle attempt by user: %s", ctx.User.Name))
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Unauthorized activation toggle attempt by user: %s", ctx.User.Name)})
 			return
 		}
 
-		activeIdsMu.Lock()
-		prevActiveID := activeIds[ctx.UserHashBase64]
-		var nextActive any = nil
-		if checked {
-			activeIds[ctx.UserHashBase64] = id
-			nextActive = id
-		} else {
-			delete(activeIds, ctx.UserHashBase64)
+		batchNumber, err := db.GetCurrentBatchNumber(id)
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed to get current batch number: %s", err.Error())})
+			return
 		}
-		activeIdsMu.Unlock()
+
+		invokeAck(args, types.SocketResponse{Status: "success", Data: batchNumber})
+	})
+
+	client.On("client:project:activation:toggle", func(args ...any) {
+		if len(args) < 4 {
+			return
+		}
+		id, _ := args[0].(string)
+		checked, _ := args[1].(bool)
+		var batchNumber int
+
+		switch args[2].(type) {
+		case int:
+			batchNumber = args[2].(int)
+		case float64:
+			batchNumber = int(args[2].(float64))
+		default:
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Invalid batch number."})
+			return
+		}
+
+		ctx := client.Data().(*types.SocketData)
+		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanAccessConsole {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Unauthorized activation toggle attempt by user: %s", ctx.User.Name)})
+			return
+		}
+
+		var prevActiveID string
+		var nextActive any = nil
+		var errorMsg string
+		lib.DoLock(&activeIdsMu, func() {
+			pCache, ok := activeIds[ctx.UserHashBase64]
+			cached := ok && pCache != nil
+
+			if checked {
+				err := db.UpsertBatchNumber(id, batchNumber)
+				if err != nil {
+					errorMsg = fmt.Sprintf("Failed to update batch number: %s", err.Error())
+					return
+				}
+
+				nextActive = id
+				if !cached {
+					activeIds[ctx.UserHashBase64] = &projectMetadataCache{id: id, batchNumber: batchNumber, mu: sync.Mutex{}}
+					return
+				}
+
+				pCache.mu.Lock()
+				prevActiveID = pCache.id
+				pCache.id = id
+				pCache.batchNumber = batchNumber
+				pCache.mu.Unlock()
+			} else {
+				if !cached {
+					errorMsg = fmt.Sprintf("No active project for user: %s", ctx.UserHashBase64)
+					return
+				}
+
+				pCache.mu.Lock()
+				prevActiveID = pCache.id
+				pCache.isDeleted = true
+				pCache.mu.Unlock()
+
+				delete(activeIds, ctx.UserHashBase64)
+			}
+		})
+
+		if errorMsg != "" {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: errorMsg})
+			return
+		}
 
 		io.To(socket.Room(ctx.UserHashBase64)).
 			To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, id))).
@@ -298,5 +436,7 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		if prevActiveID != "" {
 			io.To(socket.Room(fmt.Sprintf("%s-%s-children", ctx.UserHashBase64, prevActiveID))).Emit("server:project:activation:toggle", nil)
 		}
+
+		invokeAck(args, types.SocketResponse{Status: "success", Data: true})
 	})
 }

@@ -13,9 +13,6 @@ import (
 )
 
 func InitSocketServer() *socket.Server {
-	// Initialize history variables out from local storage files
-	initializeHistory()
-
 	io := socket.NewServer(nil, nil)
 
 	// Set path variable options matching TypeScript configuration details

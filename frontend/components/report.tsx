@@ -1,4 +1,4 @@
-import type { BlobBuffer, ScanEntry, ScanStatus } from "@/types";
+import type { BlobBuffer, ScanEntry } from "@/types";
 import type { DatasetRow } from "@/types/dataset";
 import {
     ArrowDown01Icon,
@@ -36,12 +36,10 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-type JoinedDatasetType = DatasetRow & {
-    present?: "Yes" | "No";
-    validatorName?: string;
-    validatedAt?: string;
-    status?: ScanStatus;
-};
+type JoinedDatasetType = DatasetRow &
+    Partial<Pick<ScanEntry, "presenceBy" | "createdAt" | "status">> & {
+        present?: "Yes" | "No";
+    };
 
 const finalPresent = (initial: string | undefined, status: string | undefined) => {
     return initial === "Yes" && status != null ? "Yes" : "No";
@@ -69,7 +67,7 @@ export function ReportView() {
         return Array.from(dataset.entries(), ([key, value]): JoinedDatasetType => {
             let lookup: ScanEntry | null = null;
             for (const scan of history) {
-                if (scan.data === key) {
+                if (scan.datasetRow === key) {
                     if (!(lookup === null || scan.status === "Valid")) continue;
 
                     lookup = scan;
@@ -83,8 +81,8 @@ export function ReportView() {
             return {
                 present: "Yes",
                 ...value,
-                validatorName: lookup.validatorName,
-                validatedAt: lookup.validatedAt,
+                presenceBy: lookup.presenceBy,
+                createdAt: lookup.createdAt,
                 status: lookup.status,
             };
         });
@@ -133,19 +131,15 @@ export function ReportView() {
             const headers = [
                 "present",
                 ..._columnKeys,
-                "validatorName",
-                "validatedAt",
+                "presenceBy",
+                "createdAt",
                 "status",
             ] as const;
             const rows = data.map((row) =>
                 headers.map((header) =>
                     header === "present"
                         ? finalPresent(row.present, row.status)
-                        : header === "validatedAt"
-                          ? row.validatedAt
-                              ? new Date(row.validatedAt).toLocaleString()
-                              : ""
-                          : (row[header] ?? ""),
+                        : (row[header] ?? ""),
                 ),
             );
             const buffer = await useSocketStore
@@ -186,11 +180,11 @@ export function ReportView() {
             const toastId = toast(`Exporting ${sorted ? "Sorted" : "Unsorted"} JSON...`);
 
             const rows = data.map(
-                ({ present, validatorName = "", validatedAt = "", status = "", ...row }) => ({
+                ({ present, presenceBy = "", createdAt = "", status = "", ...row }) => ({
                     present: finalPresent(present, status),
                     ...row,
-                    validatorName,
-                    validatedAt,
+                    presenceBy,
+                    createdAt,
                     status,
                 }),
             );
@@ -334,7 +328,7 @@ interface ReportViewRowProps {
     scan: Record<string, string>;
 }
 function ReportViewRow({ scan }: ReportViewRowProps) {
-    const { present, status, validatorName, validatedAt, ...others } = scan;
+    const { present, status, presenceBy, createdAt, ...others } = scan;
 
     return (
         <TableRow>
@@ -354,8 +348,8 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
             {Object.values(others).map((v, i) => (
                 <DataTableCell key={i} value={v} />
             ))}
-            <TableCell>{validatorName}</TableCell>
-            <TableCell>{validatedAt && new Date(validatedAt).toLocaleString()}</TableCell>
+            <TableCell>{presenceBy}</TableCell>
+            <TableCell>{createdAt}</TableCell>
             <TableCell className="text-center">
                 <Badge
                     variant={status ? (status === "Valid" ? "default" : "destructive") : "ghost"}

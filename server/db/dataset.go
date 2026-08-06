@@ -192,6 +192,57 @@ func FindDatasetById(userHash []byte, id string, withRows bool) (*types.DatasetW
 	return res, nil
 }
 
+func FindDatasetByProjectId(userHash []byte, projectId string, withRows bool) (*types.DatasetWithRows, error) {
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/find_by_project_id.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	var datasetId string
+	var payload []byte
+	err = DB.QueryRow(string(query), userHash, projectId).Scan(&datasetId, &payload)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	gcm, err := getDatasetGCM()
+	if err != nil {
+		return nil, err
+	}
+
+	ds, err := decryptJSON[types.DatasetPayload](payload, gcm)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &types.DatasetWithRows{DatasetPayload: *ds, ID: datasetId}
+	if withRows {
+		dr, err := FindDatasetRows(datasetId, false, nil)
+		if err != nil {
+			return nil, err
+		}
+		res.Rows = dr
+	}
+	return res, nil
+}
+
+func FindDatasetRowId(id string, keyHash any) (int, error) {
+	query, err := datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_id_by_project_id_and_key_hash.sql")
+	if err != nil {
+		return -1, err
+	}
+	var rowId int
+	err = DB.QueryRow(string(query), id, keyHash).Scan(&rowId)
+	if err == sql.ErrNoRows {
+		return -1, nil
+	} else if err != nil {
+		return -1, err
+	}
+	return rowId, nil
+}
+
 func FindDatasetRow(id string, isProject bool, keyHash any) (types.DatasetRow, error) {
 	res, err := FindDatasetRows(id, isProject, keyHash)
 	if err != nil || len(res) == 0 {

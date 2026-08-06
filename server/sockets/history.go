@@ -1,93 +1,65 @@
 package sockets
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"premark/db"
 	"premark/lib"
-	"premark/persist"
 	"premark/types"
-	"sync"
-	"time"
 
 	"github.com/zishang520/socket.io/servers/socket/v3"
 )
 
-var (
-	historyPath = persist.PublicDir("output", "history.json")
+// Mutex to protect read-then-write (check-and-insert) race conditions across concurrent sockets.
+var validationMu = lib.NewKeyedRWMutex()
 
-	// Thread-safe slice structures representing operational logs scan items.
-	historyMu     sync.RWMutex
-	scanHistory   []*types.ScanEntry
-	isWriting     bool
-	needsWriteOut bool
-)
+func checkIfDuplicate(projectId string, creatorHash []byte, rowId int, allowDuplicateValid bool, maxValidDuplicate int) (string, int) {
+	var threshold int
+	if allowDuplicateValid {
+		threshold = maxValidDuplicate
+	} else {
+		threshold = 1
+	}
 
-func initializeHistory() {
-	bytesData, err := os.ReadFile(historyPath)
+	batchNumber := getCachedBatchNumber(lib.BytesToBase64(creatorHash))
+	if batchNumber == 0 {
+		return "", 0
+	}
+
+	exists, err := db.HasValidPresenceAtLeast(projectId, batchNumber, rowId, threshold)
+	if err != nil || !exists {
+		return "", 0
+	}
+
+	if allowDuplicateValid {
+		msg := fmt.Sprintf("This entry row (%d) has already been validated more than %d times", rowId, maxValidDuplicate)
+		return msg, 1
+	}
+
+	msg := fmt.Sprintf("This entry row (%d) has already been validated", rowId)
+	return msg, 2
+}
+
+func fetchAndEmitHistory(io *socket.Server, client *socket.Socket, creatorHash []byte, projectId string, broadcast bool) {
+	dataset, err := db.FindDatasetByProjectId(creatorHash, projectId, false)
 	if err != nil {
 		return
 	}
-	historyMu.Lock()
-	_ = json.Unmarshal(bytesData, &scanHistory)
-	historyMu.Unlock()
-}
 
-func syncHistoryToDisk() {
-	historyMu.Lock()
-	if isWriting {
-		needsWriteOut = true
-		historyMu.Unlock()
+	batchNumber := getCachedBatchNumber(lib.BytesToBase64(creatorHash))
+	if batchNumber == 0 {
 		return
 	}
-	isWriting = true
-	payload, err := json.MarshalIndent(scanHistory, "", "  ")
-	historyMu.Unlock()
 
-	if err == nil {
-		_ = os.MkdirAll(filepath.Dir(historyPath), 0755)
-		_ = lib.AtomicWrite(historyPath, payload)
+	histories, err := db.FindPresenceHistoriesByProjectId(projectId, batchNumber, dataset.Key, true)
+	if err != nil {
+		return
 	}
 
-	historyMu.Lock()
-	isWriting = false
-	again := needsWriteOut
-	if again {
-		needsWriteOut = false
+	if broadcast {
+		io.Emit("server:history:update", histories)
+	} else if client != nil {
+		client.Emit("server:history:update", histories)
 	}
-	historyMu.Unlock()
-
-	if again {
-		syncHistoryToDisk()
-	}
-}
-
-func checkIfDuplicate(qrData string, allowDuplicateValid bool, maxValidDuplicate int) (string, int) {
-	historyMu.RLock()
-	duplicatedMsg := ""
-	duplicatedCode := 0
-	totalDuplicates := 0
-	for _, entry := range scanHistory {
-		if entry.Data == qrData && entry.Status == "Valid" {
-			if allowDuplicateValid {
-				totalDuplicates++
-				if totalDuplicates > maxValidDuplicate {
-					duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated more than %d times", qrData, maxValidDuplicate)
-					duplicatedCode = 1
-					break
-				}
-			} else {
-				duplicatedMsg = fmt.Sprintf("This entry data (%s) has already been validated by %s", qrData, entry.ValidatorName)
-				duplicatedCode = 2
-				break
-			}
-		}
-	}
-	historyMu.RUnlock()
-
-	return duplicatedMsg, duplicatedCode
 }
 
 func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
@@ -96,9 +68,13 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 		if ctx.User == nil {
 			return
 		}
-		historyMu.RLock()
-		defer historyMu.RUnlock()
-		client.Emit("server:history:update", scanHistory)
+
+		pID, creatorHash, err := getActiveProject(ctx.UserHashBytes, ctx.UserHashBase64)
+		if err != nil {
+			return
+		}
+
+		fetchAndEmitHistory(io, client, creatorHash, pID, false)
 	})
 
 	client.On("client:history:check:duplicate", func(args ...any) {
@@ -122,13 +98,34 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		_, duplicatedCode := checkIfDuplicate(decrypted, allowDuplicateValid, maxValidDuplicate)
-
-		res := map[string]any{
-			"decrypted":      decrypted,
-			"duplicatedCode": duplicatedCode,
+		rowHash, err := lib.CreateSearchHash(decrypted)
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Hashing failed."})
+			return
 		}
-		invokeAck(args, types.SocketResponse{Status: "success", Data: res})
+
+		pID, creatorBytes, err := getActiveProject(ctx.UserHashBytes, ctx.UserHashBase64)
+		if err != nil {
+			msg := fmt.Sprintf("Unable to get active project: %s", err.Error())
+			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
+			return
+		}
+
+		rowId, err := db.FindDatasetRowId(pID, rowHash)
+		if err != nil || rowId == -1 {
+			msg := fmt.Sprintf("Row not found: %s", rowHash)
+			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
+		}
+
+		validationMu.DoRLock(fmt.Sprintf("%s:%d", pID, rowId), func() {
+			_, duplicatedCode := checkIfDuplicate(pID, creatorBytes, rowId, allowDuplicateValid, maxValidDuplicate)
+
+			res := map[string]any{
+				"decrypted":      decrypted,
+				"duplicatedCode": duplicatedCode,
+			}
+			invokeAck(args, types.SocketResponse{Status: "success", Data: res})
+		})
 	})
 
 	client.On("client:history:validation", func(args ...any) {
@@ -145,50 +142,73 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
+		rowHash, err := lib.CreateSearchHash(qrData)
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Hashing failed."})
+			return
+		}
+
 		var (
 			allowDuplicateValid bool
 			maxValidDuplicate   int
 		)
-		{
-			creatorBytes := ctx.UserHashBytes
-			pID, cHash, err := db.GetProjectCreatorForUser(ctx.UserHashBytes)
-			if err == nil && len(cHash) > 0 {
-				creatorBytes = cHash
-			}
-			project, _ := db.FindProjectScanOptById(creatorBytes, pID)
-			if project != nil {
-				allowDuplicateValid = project["allowDuplicateValid"].(bool)
-				maxValidDuplicate = project["maxValidDuplicate"].(int)
-			}
-		}
-
-		duplicatedMsg, _ := checkIfDuplicate(qrData, allowDuplicateValid, maxValidDuplicate)
-
-		if duplicatedMsg != "" {
-			invokeAck(args, types.SocketResponse{Status: "info", Message: duplicatedMsg})
+		pID, creatorBytes, err := getActiveProject(ctx.UserHashBytes, ctx.UserHashBase64)
+		if err != nil {
+			msg := fmt.Sprintf("Unable to get active project: %s", err.Error())
+			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
 			return
 		}
 
-		newScan := &types.ScanEntry{
-			Id:            fmt.Sprintf("scan_%d", time.Now().UnixNano()/1e6),
-			Data:          qrData,
-			Status:        status,
-			ValidatorName: ctx.User.Name,
-			ValidatedAt:   time.Now().UTC().Format(time.RFC3339),
+		project, _ := db.FindProjectScanOptById(creatorBytes, pID)
+		if project != nil {
+			if v, ok := project["allowDuplicateValid"].(bool); ok {
+				allowDuplicateValid = v
+			}
+			if v, ok := project["maxValidDuplicate"].(int); ok {
+				maxValidDuplicate = v
+			}
 		}
 
-		historyMu.Lock()
-		scanHistory = append([]*types.ScanEntry{newScan}, scanHistory...)
-		historyMu.Unlock()
+		rowId, err := db.FindDatasetRowId(pID, rowHash)
+		if err != nil || rowId == -1 {
+			msg := fmt.Sprintf("Row not found: %s", rowHash)
+			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
+		}
 
-		go syncHistoryToDisk()
+		batchNumber := getCachedBatchNumber(pID)
+		if batchNumber == 0 {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed to get batch number for project: %s", pID)})
+			return
+		}
+
+		// Mutex lock prevents TOCTOU race conditions when multiple workers scan concurrently
+		hasDuplicates, err := func() (bool, error) {
+			unlock := validationMu.Lock(fmt.Sprintf("%s:%d", pID, rowId))
+			defer unlock()
+
+			duplicatedMsg, _ := checkIfDuplicate(pID, creatorBytes, rowId, allowDuplicateValid, maxValidDuplicate)
+			if duplicatedMsg != "" {
+				invokeAck(args, types.SocketResponse{Status: "info", Message: duplicatedMsg})
+				return true, nil
+			}
+
+			_, err = db.AddPresenceHistory(pID, rowId, ctx.UserHashBytes, status, batchNumber)
+			return false, err
+		}()
+
+		if hasDuplicates {
+			return
+		}
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Failed to record scan."})
+			return
+		}
 
 		msg := fmt.Sprintf("Validation for %s has been submitted", qrData)
 		invokeAck(args, types.SocketResponse{Status: "success", Data: msg})
 
-		historyMu.RLock()
-		io.Emit("server:history:update", scanHistory)
-		historyMu.RUnlock()
+		// Broadcast updated history to all connected sockets
+		fetchAndEmitHistory(io, nil, creatorBytes, pID, true)
 	})
 
 	client.On("client:history:delete", func(args ...any) {
@@ -201,23 +221,15 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		historyMu.Lock()
-		initialLen := len(scanHistory)
-		var filtered []*types.ScanEntry
-		for _, entry := range scanHistory {
-			if entry.Id != idToDelete {
-				filtered = append(filtered, entry)
-			}
+		pID, creatorHash, err := getActiveProject(ctx.UserHashBytes, ctx.UserHashBase64)
+		if err != nil {
+			return
 		}
-		scanHistory = filtered
-		changed := len(scanHistory) < initialLen
-		historyMu.Unlock()
 
-		if changed {
-			go syncHistoryToDisk()
-			historyMu.RLock()
-			io.Emit("server:history:update", scanHistory)
-			historyMu.RUnlock()
+		if err := db.DeletePresenceHistory(idToDelete); err != nil {
+			return
 		}
+
+		fetchAndEmitHistory(io, nil, creatorHash, pID, true)
 	})
 }
