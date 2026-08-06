@@ -12,4 +12,4 @@ CREATE TABLE
         FOREIGN KEY (presence_by_user_hash) REFERENCES users (user_hash) ON DELETE SET NULL
     );
 
-CREATE INDEX idx_presence_histories_lookup ON presence_histories (project_id, dataset_row_id, status);
+CREATE INDEX idx_presence_histories_lookup ON presence_histories (project_id, batch_number, dataset_row_id, status);
