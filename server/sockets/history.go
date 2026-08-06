@@ -83,7 +83,17 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 		}
 		qrData, _ := args[0].(string)
 		allowDuplicateValid, _ := args[1].(bool)
-		maxValidDuplicate, _ := args[2].(int)
+		var maxValidDuplicate int
+
+		switch args[2].(type) {
+		case int:
+			maxValidDuplicate = args[2].(int)
+		case float64:
+			maxValidDuplicate = int(args[2].(float64))
+		default:
+			invokeAck(args, types.SocketResponse{Status: "error", Error: "Invalid maximum valid duplicate."})
+			return
+		}
 
 		ctx := client.Data().(*types.SocketData)
 		if ctx.User == nil || !GetPermissions(ctx.User.AuthorizeLevel).CanScan {
