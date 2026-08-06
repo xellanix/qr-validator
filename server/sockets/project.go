@@ -1,7 +1,6 @@
 package sockets
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -66,13 +65,16 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		}
 		ctx := client.Data().(*types.SocketData)
 
-		var opt struct {
+		type initOpt struct {
 			Activation bool `json:"activation"`
 			Projects   bool `json:"projects"`
 			All        bool `json:"all"`
 		}
-		rawBytes, _ := json.Marshal(args[0])
-		_ = json.Unmarshal(rawBytes, &opt)
+		opt, err := lib.TryParseJson[initOpt](args[0])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing initialization options: %s", err.Error()))
+			return
+		}
 
 		creatorBytes := ctx.UserHashBytes
 		creatorBase64 := ctx.UserHashBase64
@@ -161,7 +163,7 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		var pData struct {
+		type projectData struct {
 			Name                 string               `json:"name"`
 			DatasetID            string               `json:"datasetId"`
 			SchemaObjects        []types.SchemaObject `json:"schemaObjects"`
@@ -170,16 +172,23 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			MaxValidDuplicate    int                  `json:"maxValidDuplicate"`
 			IsContinuousScanning bool                 `json:"isContinuousScanning"`
 		}
-		var forward struct {
+		type forwardData struct {
 			Columns  map[string]string `json:"columns"`
 			Key      string            `json:"key"`
 			KeyLabel string            `json:"keyLabel"`
 		}
 
-		b1, _ := json.Marshal(args[0])
-		b2, _ := json.Marshal(args[1])
-		_ = json.Unmarshal(b1, &pData)
-		_ = json.Unmarshal(b2, &forward)
+		pData, err := lib.TryParseJson[projectData](args[0])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing project data: %s", err.Error()))
+			return
+		}
+
+		forward, err := lib.TryParseJson[forwardData](args[1])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing forward data: %s", err.Error()))
+			return
+		}
 
 		pID, err := db.AddProject(ctx.UserHashBytes, pData.DatasetID, pData.Name, pData.SchemaObjects, pData.Users, pData.AllowDuplicateValid, pData.MaxValidDuplicate, pData.IsContinuousScanning)
 		success := err == nil && pID != ""
@@ -216,13 +225,17 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		id, _ := args[0].(string)
 		datasetID, _ := args[1].(string)
 
-		var projectsPayload map[string]any
-		var datasetsPayload map[string]any
+		projectsPayload, err := lib.TryParseJson[map[string]any](args[2])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing project data: %s", err.Error()))
+			return
+		}
 
-		b1, _ := json.Marshal(args[2])
-		b2, _ := json.Marshal(args[3])
-		_ = json.Unmarshal(b1, &projectsPayload)
-		_ = json.Unmarshal(b2, &datasetsPayload)
+		datasetsPayload, err := lib.TryParseJson[map[string]any](args[3])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing dataset data: %s", err.Error()))
+			return
+		}
 
 		var changes int64
 		if len(datasetsPayload) > 0 && datasetID != "" {
@@ -240,13 +253,10 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			for k, v := range projectsPayload {
 				switch k {
 				case "users":
-					uBytes, _ := json.Marshal(v)
-					_ = json.Unmarshal(uBytes, &newUsers)
+					newUsers, _ = lib.TryParseJson[[]types.User](v)
 				case "schemaObjects":
 					// Strip sortId from schemaObjects strictly for the database copy
-					var schemas []map[string]any
-					sBytes, _ := json.Marshal(v)
-					_ = json.Unmarshal(sBytes, &schemas)
+					schemas, _ := lib.TryParseJson[[]map[string]any](v)
 					for _, s := range schemas {
 						delete(s, "sortId")
 					}
@@ -376,14 +386,8 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		}
 		id, _ := args[0].(string)
 		checked, _ := args[1].(bool)
-		var batchNumber int
-
-		switch args[2].(type) {
-		case int:
-			batchNumber = args[2].(int)
-		case float64:
-			batchNumber = int(args[2].(float64))
-		default:
+		batchNumber, err := tryParseInt(args[2])
+		if err != nil {
 			invokeAck(args, types.SocketResponse{Status: "error", Error: "Invalid batch number."})
 			return
 		}

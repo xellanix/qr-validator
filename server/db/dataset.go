@@ -4,7 +4,6 @@ import (
 	"crypto/cipher"
 	"database/sql"
 	"embed"
-	"encoding/json"
 	"os"
 	"sync"
 
@@ -330,9 +329,10 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 	}
 
 	// Marshals through a generic structural map to update properties dynamically
-	prevBytes, _ := json.Marshal(prev.DatasetPayload)
-	var intermediate map[string]any
-	_ = json.Unmarshal(prevBytes, &intermediate)
+	intermediate, err := lib.TryParseJson[map[string]any](prev.DatasetPayload)
+	if err != nil {
+		return 0, err
+	}
 
 	for k, v := range datasetsPayload {
 		if _, exists := intermediate[k]; exists {
@@ -340,9 +340,10 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 		}
 	}
 
-	var target types.DatasetPayload
-	updatedBytes, _ := json.Marshal(intermediate)
-	_ = json.Unmarshal(updatedBytes, &target)
+	target, err := lib.TryParseJson[types.DatasetPayload](intermediate)
+	if err != nil {
+		return 0, err
+	}
 
 	gcm, err := getDatasetGCM()
 	if err != nil {

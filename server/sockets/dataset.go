@@ -1,9 +1,9 @@
 package sockets
 
 import (
-	"encoding/json"
 	"fmt"
 	"premark/db"
+	"premark/lib"
 	"premark/types"
 	"strings"
 
@@ -91,14 +91,11 @@ func registerDatasetHandlers(client *socket.Socket) {
 			return
 		}
 
-		rawJSON, err := json.Marshal(args[0])
+		payload, err := lib.TryParseJson[types.DatasetPayload](args[0])
 		if err != nil {
-			invokeAck(args, types.SocketResponse{Status: "error", Error: "Failed parsing tracking payloads."})
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed parsing tracking payloads: %s", err.Error())})
 			return
 		}
-
-		var payload types.DatasetPayload
-		_ = json.Unmarshal(rawJSON, &payload)
 
 		id, err := db.AddDataset(ctx.UserHashBytes, payload, nil)
 		if err != nil || id == "" {

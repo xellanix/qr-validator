@@ -2,7 +2,6 @@ package sockets
 
 import (
 	"crypto/cipher"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -185,9 +184,11 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		var items []string
-		rawBytes, _ := json.Marshal(args[0])
-		_ = json.Unmarshal(rawBytes, &items)
+		items, err := lib.TryParseJson[[]string](args[0])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing items: %s", err.Error()))
+			return
+		}
 
 		projectID, _ := args[1].(string)
 		trimmed := strings.TrimSpace(projectID)
@@ -216,9 +217,11 @@ func registerPresenceHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		var mustDelete []string
-		rawBytes, _ := json.Marshal(args[0])
-		_ = json.Unmarshal(rawBytes, &mustDelete)
+		mustDelete, err := lib.TryParseJson[[]string](args[0])
+		if err != nil {
+			client.Emit("server:response:error", fmt.Sprintf("Failed parsing items: %s", err.Error()))
+			return
+		}
 
 		projectID, _ := args[1].(string)
 		trimmed := strings.TrimSpace(projectID)

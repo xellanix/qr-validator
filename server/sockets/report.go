@@ -3,8 +3,8 @@ package sockets
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
+	"premark/lib"
 	"premark/types"
 
 	"github.com/zishang520/socket.io/servers/socket/v3"
@@ -22,13 +22,16 @@ func registerReportHandlers(client *socket.Socket) {
 			return
 		}
 
-		var matrix [][]string
-		var datasetKeys []string
-
-		b1, _ := json.Marshal(args[0])
-		b2, _ := json.Marshal(args[1])
-		_ = json.Unmarshal(b1, &matrix)
-		_ = json.Unmarshal(b2, &datasetKeys)
+		matrix, err := lib.TryParseJson[[][]string](args[0])
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed parsing 2d matrix data: %s", err.Error())})
+			return
+		}
+		datasetKeys, err := lib.TryParseJson[[]string](args[1])
+		if err != nil {
+			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed parsing dataset keys: %s", err.Error())})
+			return
+		}
 
 		buf := new(bytes.Buffer)
 		writer := csv.NewWriter(buf)

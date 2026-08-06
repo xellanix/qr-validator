@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -304,4 +305,17 @@ func DoLock(mutex sync.Locker, f func()) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	f()
+}
+
+// TryParseJson attempts to parse JSON into a generic type
+func TryParseJson[T any](v any) (T, error) {
+	var result T
+
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		return result, err
+	}
+
+	err = json.Unmarshal(bytes, &result)
+	return result, err
 }
