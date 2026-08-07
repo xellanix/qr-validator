@@ -132,8 +132,8 @@ export function ReportView() {
                                             {key === datasetKey ? datasetKeyLabel : key}
                                         </TableHead>
                                     ))}
-                                    <TableHead>Validator</TableHead>
-                                    <TableHead>Validated At</TableHead>
+                                    <TableHead>Presence By</TableHead>
+                                    <TableHead>Created At</TableHead>
                                     <TableHead className="text-center">Status</TableHead>
                                 </TableRow>
                             </TableHeader>

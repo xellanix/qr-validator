@@ -91,8 +91,8 @@ export function HistoryView() {
                     <TableHeader className="sticky top-0 bg-card">
                         <TableRow className="relative after:absolute after:inset-0 after:bg-input/30 after:-z-10">
                             <TableHead>{inputDataKey}</TableHead>
-                            <TableHead>Validator</TableHead>
-                            <TableHead>Validated At</TableHead>
+                            <TableHead>Presence By</TableHead>
+                            <TableHead>Created At</TableHead>
                             <TableHead className="text-center">Status</TableHead>
                             {canDelete && <TableHead className="text-center">Actions</TableHead>}
                         </TableRow>
