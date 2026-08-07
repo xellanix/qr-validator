@@ -177,6 +177,7 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 		if err != nil || rowId == -1 {
 			msg := fmt.Sprintf("Row not found: %s", rowHash)
 			invokeAck(args, types.SocketResponse{Status: "error", Error: msg})
+			return
 		}
 
 		batchNumber := getCachedBatchNumber(pID)
