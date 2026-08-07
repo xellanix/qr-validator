@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"premark/lib"
 	"premark/persist"
 	"premark/types"
 	"reflect"
@@ -49,7 +51,7 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 		return id, nil
 	}
 
-	_, hashes, err := AddUsers(assignedUsers, id)
+	hashes, err := AddUsers(assignedUsers, id)
 	if err != nil || len(hashes) == 0 {
 		return "", err
 	}
@@ -120,11 +122,13 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 		rows, err := DB.Query(string(query), row.ID)
 		if err == nil {
 			defer rows.Close()
-			var users []types.User
+			users := make([]types.User, 0)
 			for rows.Next() {
+				var rawHash []byte
 				var payload []byte
-				if err := rows.Scan(&payload); err == nil {
+				if err := rows.Scan(&rawHash, &payload); err == nil {
 					if u, err := GetUser(payload); err == nil && u != nil {
+						u.Hash = lib.BytesToBase64(rawHash)
 						users = append(users, *u)
 					}
 				}
@@ -225,9 +229,28 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 		var hashes [][]byte
 
 		for _, u := range newAssignedUsers {
-			hash, tokenBytes, token, err := CreateUserHash(u)
-			if err != nil {
-				return 0, err
+			var hash []byte
+			var token string
+
+			// Existing user with stable hash
+			if u.Hash != "" && !strings.HasPrefix(u.Hash, "temp_hash_") {
+				rawHash, err := lib.Base64ToBytes(u.Hash)
+				if err == nil && len(rawHash) > 0 {
+					hash = rawHash
+					_, token, err = CreateUserToken(u)
+					if err != nil {
+						return 0, err
+					}
+				}
+			}
+
+			// New user without hash (or fallback)
+			if len(hash) == 0 {
+				h, tk, err := CreateUserHash(u)
+				if err != nil {
+					return 0, err
+				}
+				hash, token = h, tk
 			}
 
 			payloadMap := map[string]string{"token": token}
@@ -237,19 +260,19 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 			}
 
 			payloads = append(payloads, payload)
-			filePayloads = append(filePayloads, filePayload{Name: u.Name, TokenBytes: tokenBytes})
+			filePayloads = append(filePayloads, filePayload{Name: u.Name, UserHash: hash})
 			hashes = append(hashes, hash)
 		}
 
 		changes, err := syncProjectUsers(id, hashes, payloads)
-		if err != nil || changes == 0 {
+		if err != nil {
 			return 0, err
 		}
 		totalChanges += changes
 
 		_ = os.RemoveAll(persist.PublicDir("output", "users", id))
 		for _, fp := range filePayloads {
-			writeTokenFile(fp.Name, fp.TokenBytes, id)
+			writeUserHashFile(fp.Name, fp.UserHash, id)
 		}
 	}
 
@@ -276,6 +299,7 @@ func UpdateProject(userHash []byte, id string, projectsPayload map[string]any, n
 	if err != nil {
 		return 0, err
 	}
+
 	return totalChanges + dbChanges, nil
 }
 
@@ -296,7 +320,22 @@ func syncProjectUsers(projectId string, newUsers [][]byte, newPayloads [][]byte)
 		if err != nil {
 			return 0, err
 		}
-		return res.RowsAffected()
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		// Commit the transaction before returning
+		if err := tx.Commit(); err != nil {
+			return 0, err
+		}
+
+		return rowsAffected, nil
+	}
+
+	if len(newUsers) != len(newPayloads) {
+		return 0, errors.New("newUsers and newPayloads must be the same length")
 	}
 
 	placeholders := make([]string, len(newUsers))

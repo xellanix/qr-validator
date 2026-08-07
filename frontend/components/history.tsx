@@ -24,8 +24,12 @@ export function Synchronizer() {
     useEffect(() => {
         if (!socket) return;
 
-        const update = (updatedHistory: ScanEntry[]) => {
-            useHistoryStore.getState().setEntries(updatedHistory ?? []);
+        type UpdatedEntry = Omit<ScanEntry, "createdAt"> & { createdAt: number | string };
+        const update = (updatedHistory: UpdatedEntry[]) => {
+            for (const entry of updatedHistory) {
+                entry.createdAt = String(entry.createdAt);
+            }
+            useHistoryStore.getState().setEntries((updatedHistory as ScanEntry[]) ?? []);
         };
         socket.emit("client:history:init");
         socket.on("server:history:update", update);
@@ -59,8 +63,8 @@ export function HistoryView() {
 
         return history.filter(
             (entry) =>
-                entry.data.toLowerCase().includes(term) ||
-                entry.validatorName.toLowerCase().includes(term),
+                entry.datasetRow.toLowerCase().includes(term) ||
+                entry.presenceBy.toLowerCase().includes(term),
         );
     }, [history, searchTerm]);
 
@@ -87,8 +91,8 @@ export function HistoryView() {
                     <TableHeader className="sticky top-0 bg-card">
                         <TableRow className="relative after:absolute after:inset-0 after:bg-input/30 after:-z-10">
                             <TableHead>{inputDataKey}</TableHead>
-                            <TableHead>Validator</TableHead>
-                            <TableHead>Validated At</TableHead>
+                            <TableHead>Presence By</TableHead>
+                            <TableHead>Created At</TableHead>
                             <TableHead className="text-center">Status</TableHead>
                             {canDelete && <TableHead className="text-center">Actions</TableHead>}
                         </TableRow>
@@ -131,10 +135,10 @@ function HistoryViewRow({ scan, canDelete }: HistoryViewRowProps) {
     return (
         <TableRow>
             <TableCell className="max-w-50 truncate font-medium whitespace-pre-line sm:max-w-xs">
-                {scan.data}
+                {scan.datasetRow}
             </TableCell>
-            <TableCell>{scan.validatorName}</TableCell>
-            <TableCell>{new Date(scan.validatedAt).toLocaleString()}</TableCell>
+            <TableCell>{scan.presenceBy}</TableCell>
+            <TableCell>{new Date(scan.createdAt).toLocaleString()}</TableCell>
             <TableCell className="text-center">
                 <Badge variant={scan.status === "Valid" ? "default" : "destructive"}>
                     {scan.status}

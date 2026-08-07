@@ -1,4 +1,4 @@
-import type { DataContentType } from "~/types/dataset";
+import type { DataContentType } from "@/types/dataset";
 import { useProjectStore } from "@/stores/project.store";
 import { DatasetSourceLabel } from "@/components/dialogs/projects/add/contents/data-source";
 import { ActiveSchemasFlow } from "@/components/dialogs/projects/add/contents/input-schema";

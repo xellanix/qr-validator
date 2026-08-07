@@ -1,4 +1,4 @@
-import type { User } from "~/types/user";
+import type { User } from "@/types/user";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useProjectStore } from "@/stores/project.store";
@@ -45,13 +45,8 @@ function AssignedUsers() {
         <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
             <Administrator />
 
-            {users?.map(({ name, authorizeLevel }, i) => (
-                <AssignedUsersItem
-                    key={`(${name}, ${authorizeLevel})[${i}]`}
-                    name={name}
-                    authorizeLevel={authorizeLevel}
-                    index={i}
-                />
+            {users?.map((user, i) => (
+                <AssignedUsersItem key={`(${user.name}, ${user.authorizeLevel})[${i}]`} {...user} />
             ))}
         </ItemGroup>
     );
@@ -81,21 +76,21 @@ const setUsers = (prev: (prev: User[]) => User[]) => {
     });
 };
 
-function AssignedUsersItem({ name, authorizeLevel, index }: User & { index: number }) {
+function AssignedUsersItem({ hash, name, authorizeLevel }: User) {
     const nameChanged = (v: string) => {
-        setUsers((users) => users.map((u, i) => (i === index ? { ...u, name: v } : u)));
+        setUsers((users) => users.map((u) => (u.hash === hash ? { ...u, name: v } : u)));
     };
 
     const roleChanged = (v: string) => {
         setUsers((users) =>
-            users.map((u, i) =>
-                i === index ? { ...u, authorizeLevel: Number(v) as User["authorizeLevel"] } : u,
+            users.map((u) =>
+                u.hash === hash ? { ...u, authorizeLevel: Number(v) as User["authorizeLevel"] } : u,
             ),
         );
     };
 
     const removeUser = () => {
-        setUsers((users) => users.filter((_, i) => i !== index));
+        setUsers((users) => users.filter((u) => u.hash !== hash));
     };
 
     return (
@@ -135,7 +130,8 @@ function AssignedUsersItem({ name, authorizeLevel, index }: User & { index: numb
 
 function AddUsersAction() {
     const addUser = () => {
-        setUsers((users) => [...users, { name: "", authorizeLevel: 0 }]);
+        const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+        setUsers((users) => [...users, { hash: `temp_hash_${id}`, name: "", authorizeLevel: 0 }]);
     };
 
     return (

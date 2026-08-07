@@ -138,10 +138,12 @@ func InitDB() {
 		log.Fatalf("Failed to initialize database directory: %v", err)
 	}
 
-	DB, err = sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000")
+	DB, err = sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_journal_mode=WAL&_synchronous=NORMAL&_busy_timeout=5000&_txlock=immediate")
 	if err != nil {
 		log.Fatalf("Failed to execute database engine hook: %v", err)
 	}
+	DB.SetMaxOpenConns(20)
+	DB.SetMaxIdleConns(5)
 
 	if err := runMigrations(); err != nil {
 		log.Fatalf("Migration failed: %v", err)

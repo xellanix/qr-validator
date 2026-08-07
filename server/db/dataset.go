@@ -4,7 +4,6 @@ import (
 	"crypto/cipher"
 	"database/sql"
 	"embed"
-	"encoding/json"
 	"os"
 	"sync"
 
@@ -192,6 +191,57 @@ func FindDatasetById(userHash []byte, id string, withRows bool) (*types.DatasetW
 	return res, nil
 }
 
+func FindDatasetByProjectId(userHash []byte, projectId string, withRows bool) (*types.DatasetWithRows, error) {
+	query, err := datasetsQueries.ReadFile("sql/queries/datasets/find_by_project_id.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	var datasetId string
+	var payload []byte
+	err = DB.QueryRow(string(query), userHash, projectId).Scan(&datasetId, &payload)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	gcm, err := getDatasetGCM()
+	if err != nil {
+		return nil, err
+	}
+
+	ds, err := decryptJSON[types.DatasetPayload](payload, gcm)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &types.DatasetWithRows{DatasetPayload: *ds, ID: datasetId}
+	if withRows {
+		dr, err := FindDatasetRows(datasetId, false, nil)
+		if err != nil {
+			return nil, err
+		}
+		res.Rows = dr
+	}
+	return res, nil
+}
+
+func FindDatasetRowId(id string, keyHash any) (int, error) {
+	query, err := datasetRowsQueries.ReadFile("sql/queries/dataset_rows/find_id_by_project_id_and_key_hash.sql")
+	if err != nil {
+		return -1, err
+	}
+	var rowId int
+	err = DB.QueryRow(string(query), id, keyHash).Scan(&rowId)
+	if err == sql.ErrNoRows {
+		return -1, nil
+	} else if err != nil {
+		return -1, err
+	}
+	return rowId, nil
+}
+
 func FindDatasetRow(id string, isProject bool, keyHash any) (types.DatasetRow, error) {
 	res, err := FindDatasetRows(id, isProject, keyHash)
 	if err != nil || len(res) == 0 {
@@ -279,9 +329,10 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 	}
 
 	// Marshals through a generic structural map to update properties dynamically
-	prevBytes, _ := json.Marshal(prev.DatasetPayload)
-	var intermediate map[string]any
-	_ = json.Unmarshal(prevBytes, &intermediate)
+	intermediate, err := lib.TryParseJson[map[string]any](prev.DatasetPayload)
+	if err != nil {
+		return 0, err
+	}
 
 	for k, v := range datasetsPayload {
 		if _, exists := intermediate[k]; exists {
@@ -289,9 +340,10 @@ func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (
 		}
 	}
 
-	var target types.DatasetPayload
-	updatedBytes, _ := json.Marshal(intermediate)
-	_ = json.Unmarshal(updatedBytes, &target)
+	target, err := lib.TryParseJson[types.DatasetPayload](intermediate)
+	if err != nil {
+		return 0, err
+	}
 
 	gcm, err := getDatasetGCM()
 	if err != nil {

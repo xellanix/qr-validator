@@ -105,6 +105,8 @@ func main() {
 	app.Get("/api/download/user/*", handlers.HandleUserKeyDownload)
 	app.Get("/api/download/presence/*", handlers.HandlePresenceDownload)
 
+	app.Get("/api/generate/report/:project<guid>/:batch<int;min(1)>/:ext<regex(^(csv|json)$)>/:sorted<bool>", handlers.HandleGenerateReport)
+
 	// Mount the Socket.IO Web server handler using a standard HTTP request context proxy adaptor
 	socketHandler := adaptor.HTTPHandler(io.ServeHandler(nil))
 	app.All("/api/socket_io", socketHandler)

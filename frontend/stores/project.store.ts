@@ -1,9 +1,8 @@
 import type { ZodType } from "zod";
-import type { DatasetPayload, DatasetRow, DatasetRowKey } from "~/types/dataset";
-import type { PresenceContent } from "~/types/generated-contents";
-import type { ProjectWithDataset } from "~/types/project";
-import type { User } from "~/types/user";
-import type { ProjectItem, SchemaObjectSortable } from "@/types/project";
+import type { DatasetPayload, DatasetRow, DatasetRowKey } from "@/types/dataset";
+import type { PresenceContent } from "@/types/generated-contents";
+import type { ProjectItem, ProjectWithDataset, SchemaObjectSortable } from "@/types/project";
+import type { User } from "@/types/user";
 import { string } from "zod";
 import { create } from "zustand";
 import { createSingletonAsyncLoader } from "@/lib/utils";

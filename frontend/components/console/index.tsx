@@ -1,7 +1,9 @@
-import { useCallback } from "react";
+import { useState } from "react";
 import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
+import { useCallbackLock } from "@/hooks/use-callback-lock";
 import { ProjectMoreButton } from "@/components/dialogs/projects";
+import { ActivateProjectDialog } from "@/components/dialogs/projects/activation";
 import { NewProjectButton } from "@/components/dialogs/projects/add";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,28 +77,33 @@ interface ProjectItemProps {
 }
 function ProjectItem({ id, name }: ProjectItemProps) {
     const isActive = useProjectStore((s) => s.activeId === id);
+    const [isOpen, setIsOpen] = useState(false);
 
-    const checkedChanged = useCallback(
-        (checked: boolean) => {
-            useSocketStore.getState().emit("client:project:activation:toggle", id, checked);
-        },
-        [id],
-    );
+    const { invoke: checkedChanged, isLocked } = useCallbackLock(async (checked: boolean) => {
+        if (checked) return setIsOpen(true);
+
+        const { emitAck } = useSocketStore.getState();
+        await emitAck<boolean>("client:project:activation:toggle", id, checked, 0); // Dummy batch number, never used
+    });
 
     return (
         <Item variant={"outline"} className="h-fit">
-            <ItemContent className="w-full overflow-hidden">
-                <ItemTitle>
-                    <Switch size="sm" checked={isActive} onCheckedChange={checkedChanged} />
-                    {name}
-                </ItemTitle>
-                <ItemDescription className="truncate line-clamp-none">{id}</ItemDescription>
-            </ItemContent>
-            <ItemActions>
-                <div className="flex items-center">
-                    <ProjectMoreButton id={id} />
-                </div>
-            </ItemActions>
+            <ActivateProjectDialog projectId={id} isOpen={isOpen} setIsOpen={setIsOpen} />
+
+            <fieldset className="contents" disabled={isLocked}>
+                <ItemContent className="w-full overflow-hidden">
+                    <ItemTitle>
+                        <Switch size="sm" checked={isActive} onCheckedChange={checkedChanged} />
+                        {name}
+                    </ItemTitle>
+                    <ItemDescription className="truncate line-clamp-none">{id}</ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                    <div className="flex items-center">
+                        <ProjectMoreButton id={id} />
+                    </div>
+                </ItemActions>
+            </fieldset>
         </Item>
     );
 }

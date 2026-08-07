@@ -1,6 +1,7 @@
 package sockets
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"premark/constants"
@@ -13,9 +14,6 @@ import (
 )
 
 func InitSocketServer() *socket.Server {
-	// Initialize history variables out from local storage files
-	initializeHistory()
-
 	io := socket.NewServer(nil, nil)
 
 	// Set path variable options matching TypeScript configuration details
@@ -77,7 +75,6 @@ func InitSocketServer() *socket.Server {
 		registerDatasetHandlers(client)
 		registerHistoryHandlers(io, client)
 		registerSecurityHandlers(client)
-		registerReportHandlers(client)
 
 		client.On("disconnect", func(args ...any) {
 			fmt.Printf("❌ Client disconnected: %s\n", client.Id())
@@ -116,5 +113,17 @@ func invokeAck(args []any, response types.SocketResponse) {
 	if cb, ok := lastArg.(func(...any)); ok {
 		cb(response)
 		return
+	}
+}
+
+// tryParseInt attempts to parse an int from any type. Only int and float64 are supported
+func tryParseInt(v any) (int, error) {
+	switch v := v.(type) {
+	case int:
+		return v, nil
+	case float64:
+		return int(v), nil
+	default:
+		return -1, errors.New("Invalid type")
 	}
 }

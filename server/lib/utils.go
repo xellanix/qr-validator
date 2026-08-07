@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -289,4 +290,33 @@ func AtomicWrite(destPath string, data []byte) error {
 	}
 
 	return nil
+}
+
+// GetMuMapValue safely acquires a read lock on the map and returns the value associated with the key
+func GetMuMapValue[K comparable, V any](mutex *sync.RWMutex, m map[K]V, key K) (V, bool) {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	value, ok := m[key]
+	return value, ok
+}
+
+// DoLock executes a function within a lock
+func DoLock(mutex sync.Locker, f func()) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	f()
+}
+
+// TryParseJson attempts to parse JSON into a generic type
+func TryParseJson[T any](v any) (T, error) {
+	var result T
+
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		return result, err
+	}
+
+	err = json.Unmarshal(bytes, &result)
+	return result, err
 }

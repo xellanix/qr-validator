@@ -1,5 +1,5 @@
-import type { DatasetRow, DatasetRowValue } from "~/types/dataset";
 import type { ScanStatus } from "@/types";
+import type { DatasetRow, DatasetRowValue } from "@/types/dataset";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project.store";
