@@ -5,9 +5,11 @@ import (
 	"embed"
 	"fmt"
 	"premark/types"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
+	orderedMap "github.com/wk8/go-ordered-map/v2"
 )
 
 type presenceHistoryItem struct {
@@ -17,6 +19,8 @@ type presenceHistoryItem struct {
 	CreatedAt  int64  `json:"createdAt"`
 	Status     string `json:"status"`
 }
+
+type ReportRow = *orderedMap.OrderedMap[string, any]
 
 //go:embed sql/queries/presence_histories
 var presenceHistoriesQueries embed.FS
@@ -141,6 +145,121 @@ func DeletePresenceHistory(id string) error {
 
 	_, err = DB.Exec(string(query), targetID)
 	return err
+}
+
+func GenerateReport(projectId string, batchNumber int, sorted bool) ([]string, []ReportRow, error) {
+	query, err := presenceHistoriesQueries.ReadFile("sql/queries/presence_histories/get_report.sql")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to read presence history report query: %s", err.Error())
+	}
+
+	rows, err := DB.Query(string(query), batchNumber, projectId)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to execute presence history report query: %s", err.Error())
+	}
+	defer rows.Close()
+
+	gcm, err := getDatasetGCM()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to get dataset GCM: %s", err.Error())
+	}
+
+	var datasetPayload []byte
+	err = DB.QueryRow("SELECT d.payload FROM datasets d JOIN projects p ON d.id = p.dataset_id WHERE p.id = ?", projectId).Scan(&datasetPayload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to get dataset payload: %s", err.Error())
+	}
+
+	ds, err := decryptJSON[types.DatasetPayload](datasetPayload, gcm)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to decrypt dataset payload: %s", err.Error())
+	}
+
+	var headers []string
+	for k := range ds.Columns {
+		headers = append(headers, k)
+	}
+
+	var result []ReportRow
+	for rows.Next() {
+		row := orderedMap.New[string, any]()
+
+		var (
+			present           bool
+			rowPayload        []byte
+			presenceByPayload []byte
+			createdAtNs       sql.NullInt64
+			status            sql.NullString
+		)
+
+		if err := rows.Scan(&present, &rowPayload, &presenceByPayload, &createdAtNs, &status); err != nil {
+			return nil, nil, fmt.Errorf("Failed to scan presence history row: %s", err.Error())
+		}
+
+		if present {
+			row.Set("present", "Yes")
+		} else {
+			row.Set("present", "No")
+		}
+
+		dr, err := decryptJSON[types.DatasetRow](rowPayload, gcm)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed to decrypt dataset row: %s", err.Error())
+		}
+
+		for _, k := range headers {
+			v, _ := (*dr)[k]
+			row.Set(k, v)
+		}
+
+		row.Set("presenceBy", "")
+		if presenceByPayload != nil {
+			if presenceBy, err := GetUser(presenceByPayload); err == nil {
+				row.Set("presenceBy", presenceBy.Name)
+			}
+		}
+
+		if createdAtNs.Valid {
+			row.Set("createdAt", createdAtNs.Int64)
+		} else {
+			row.Set("createdAt", 0)
+		}
+
+		if status.Valid {
+			row.Set("status", status.String)
+		} else {
+			row.Set("status", "")
+		}
+
+		result = append(result, row)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("Failed to iterate presence history rows: %s", err.Error())
+	}
+
+	// Sort logic
+	sort.Slice(result, func(i, j int) bool {
+		if sorted {
+			pi, _ := result[i].Value("present").(string)
+			pj, _ := result[j].Value("present").(string)
+			if pi != pj {
+				return pi != "Yes" && pj == "Yes"
+			}
+		}
+
+		rki, _ := result[i].Value(ds.Key).(string)
+		rkj, _ := result[j].Value(ds.Key).(string)
+		if rki != rkj {
+			return rki < rkj
+		}
+
+		ci, _ := result[i].Value("createdAt").(int64)
+		cj, _ := result[j].Value("createdAt").(int64)
+		return ci < cj
+	})
+
+	return headers, result, nil
 }
 
 func GetCurrentBatchNumber(projectId string) (int, error) {

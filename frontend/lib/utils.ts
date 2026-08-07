@@ -1,5 +1,6 @@
 import type { ClassValue } from "clsx";
 import { clsx } from "clsx";
+import { parse } from "content-disposition";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -143,4 +144,15 @@ export function formatFileSize(bytes: number, decimals = 3) {
 
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+export function getDispositionFilename(disposition: string | null, fallback: string) {
+    try {
+        if (!disposition) return fallback;
+
+        const parsed = parse(disposition);
+        return parsed.parameters.filename || fallback;
+    } catch {
+        return fallback;
+    }
 }

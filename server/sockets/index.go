@@ -75,7 +75,6 @@ func InitSocketServer() *socket.Server {
 		registerDatasetHandlers(client)
 		registerHistoryHandlers(io, client)
 		registerSecurityHandlers(client)
-		registerReportHandlers(client)
 
 		client.On("disconnect", func(args ...any) {
 			fmt.Printf("❌ Client disconnected: %s\n", client.Id())

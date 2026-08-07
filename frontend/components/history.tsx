@@ -27,7 +27,7 @@ export function Synchronizer() {
         type UpdatedEntry = Omit<ScanEntry, "createdAt"> & { createdAt: number | string };
         const update = (updatedHistory: UpdatedEntry[]) => {
             for (const entry of updatedHistory) {
-                entry.createdAt = new Date(entry.createdAt).toLocaleString();
+                entry.createdAt = String(entry.createdAt);
             }
             useHistoryStore.getState().setEntries((updatedHistory as ScanEntry[]) ?? []);
         };
@@ -138,7 +138,7 @@ function HistoryViewRow({ scan, canDelete }: HistoryViewRowProps) {
                 {scan.datasetRow}
             </TableCell>
             <TableCell>{scan.presenceBy}</TableCell>
-            <TableCell>{scan.createdAt}</TableCell>
+            <TableCell>{new Date(scan.createdAt).toLocaleString()}</TableCell>
             <TableCell className="text-center">
                 <Badge variant={scan.status === "Valid" ? "default" : "destructive"}>
                     {scan.status}

@@ -11,8 +11,3 @@ type SuccessResult<T> = { status: "success"; data: T };
 type ErrorResult = { status: "error"; error: string };
 type InfoResult = { status: "info"; message: string };
 export type Result<T> = ErrorResult | InfoResult | SuccessResult<T>;
-
-export type BlobBuffer = {
-    buffer: Buffer<ArrayBuffer>;
-    type: string;
-};
