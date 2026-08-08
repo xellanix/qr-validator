@@ -23,6 +23,7 @@ import {
 type JoinedDatasetType = Record<string, string | number> &
     Partial<Pick<ScanEntry, "presenceBy" | "createdAt" | "status">> & {
         present?: "Yes" | "No";
+        count?: number;
     };
 
 const finalPresent = (initial: string | undefined, status: string | undefined) => {
@@ -51,74 +52,76 @@ export default function ReportView() {
 function ReportContentView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+
     const dataset = useProjectStore((s) => s.dataset);
-    const datasetKey = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.key,
-    );
-    const datasetKeyLabel = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.keyLabel,
-    );
-    const columnKeys = useProjectStore(
-        (s) => ((s.activeId && s.projects[s.activeId]) || null)?.columnKeys,
-    );
+    const activeProject = useProjectStore((s) => (s.activeId ? s.projects[s.activeId] : null));
+    const datasetKey = activeProject?.key;
+    const datasetKeyLabel = activeProject?.keyLabel;
+    const columnKeys = activeProject?.columnKeys;
     const itemsPerPage = 10;
 
     const history = useHistoryStore((s) => s.entries);
-    const sortedDataset = useMemo(() => {
+    const historyMap = useMemo(() => {
+        const map = new Map<string, { lookup: ScanEntry; count: number }>();
+        for (const scan of history) {
+            const existing = map.get(scan.datasetRow);
+            if (!existing) {
+                map.set(scan.datasetRow, { lookup: scan, count: 1 });
+            } else {
+                existing.count++;
+            }
+        }
+        return map;
+    }, [history]);
+
+    const filteredDataset = useMemo(() => {
         if (!dataset) return [];
 
-        const joinedDataset = Array.from(dataset.entries(), ([key, value]): JoinedDatasetType => {
-            let lookup: ScanEntry | null = null;
-            for (const scan of history) {
-                if (scan.datasetRow === key) {
-                    if (!(lookup === null || scan.status === "Valid")) continue;
-
-                    lookup = scan;
-                    if (scan.status === "Valid") {
-                        break;
-                    }
+        const lowerSearch = searchTerm.trim().toLowerCase();
+        const joined: JoinedDatasetType[] = [];
+        for (const [key, value] of dataset.entries()) {
+            // Search Filter
+            if (lowerSearch && datasetKey) {
+                const targetValue = value[datasetKey];
+                if (
+                    typeof targetValue !== "string" ||
+                    !targetValue.toLowerCase().includes(lowerSearch)
+                ) {
+                    continue;
                 }
             }
-            if (!lookup) return value;
 
-            return {
-                present: "Yes",
-                ...value,
-                presenceBy: lookup.presenceBy,
-                createdAt: lookup.createdAt,
-                status: lookup.status,
-            };
-        });
+            // Join with history
+            const historyEntry = historyMap.get(key);
+            if (!historyEntry) {
+                joined.push(value);
+            } else {
+                joined.push({
+                    present: "Yes",
+                    ...value,
+                    presenceBy: historyEntry.lookup.presenceBy,
+                    createdAt: historyEntry.lookup.createdAt,
+                    status: historyEntry.lookup.status,
+                    count: historyEntry.count,
+                });
+            }
+        }
 
-        return joinedDataset.sort((a, b) => {
-            let c = finalPresent(a.present, a.status).localeCompare(
-                finalPresent(b.present, b.status),
-            );
-            if (c !== 0) return c;
+        return joined.sort((a, b) => {
+            const aPres = finalPresent(a.present, a.status) === "Yes" ? 1 : 0;
+            const bPres = finalPresent(b.present, b.status) === "Yes" ? 1 : 0;
+            if (aPres !== bPres) return aPres - bPres;
 
             if (datasetKey) {
-                c = compareNullableStrings(
-                    a[datasetKey] as string | undefined,
-                    b[datasetKey] as string | undefined,
-                );
+                const aKey = a[datasetKey] as string | undefined;
+                const bKey = b[datasetKey] as string | undefined;
+                const c = compareNullableStrings(aKey, bKey);
                 if (c !== 0) return c;
             }
 
             return (a.createdAt || -1) - (b.createdAt || -1);
         });
-    }, [dataset, history, datasetKey]);
-
-    const filteredDataset = useMemo(() => {
-        if (!sortedDataset) return [];
-        if (!datasetKey) return sortedDataset;
-        if (!searchTerm) return sortedDataset;
-
-        return sortedDataset.filter((entry) => {
-            if (datasetKey in entry === false) return false;
-
-            return (entry[datasetKey] as string).toLowerCase().includes(searchTerm.toLowerCase());
-        });
-    }, [sortedDataset, datasetKey, searchTerm]);
+    }, [dataset, historyMap, datasetKey, searchTerm]);
 
     const totalPages = Math.ceil(filteredDataset.length / itemsPerPage);
     const paginatedDataset = useMemo(() => {
@@ -137,7 +140,7 @@ function ReportContentView() {
             <CardContent className="flex h-full flex-col overflow-hidden *:-mx-6 *:-mb-4 *:px-6 *:py-4">
                 <div className="flex flex-1 flex-col gap-y-4 overflow-hidden">
                     <Input
-                        placeholder={`Search by ${datasetKey}...`}
+                        placeholder={`Search by ${datasetKey || "key"}...`}
                         value={searchTerm}
                         onChange={(e) => {
                             setSearchTerm(e.target.value);
@@ -159,17 +162,27 @@ function ReportContentView() {
                                     <TableHead>Presence By</TableHead>
                                     <TableHead>Created At</TableHead>
                                     <TableHead className="text-center">Status</TableHead>
+                                    <TableHead className="text-center">Count</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
+                            <TableBody className="after:h-full after:table-row">
                                 {paginatedDataset.length > 0 ? (
-                                    paginatedDataset.map((scan, index) => (
-                                        <ReportViewRow key={index} scan={scan} />
-                                    ))
+                                    paginatedDataset.map((scan, index) => {
+                                        const rowKey = datasetKey
+                                            ? String(scan[datasetKey] ?? index)
+                                            : index;
+                                        return (
+                                            <ReportViewRow
+                                                key={rowKey}
+                                                scan={scan}
+                                                columnKeys={columnKeys}
+                                            />
+                                        );
+                                    })
                                 ) : (
-                                    <TableRow>
+                                    <TableRow className="h-full">
                                         <TableCell
-                                            colSpan={4 + (columnKeys?.length ?? 0)}
+                                            colSpan={5 + (columnKeys?.length ?? 0)}
                                             className="text-center"
                                         >
                                             No results found.
@@ -193,9 +206,11 @@ function ReportContentView() {
 
 interface ReportViewRowProps {
     scan: JoinedDatasetType;
+    columnKeys?: string[];
 }
-function ReportViewRow({ scan }: ReportViewRowProps) {
-    const { present, status, presenceBy, createdAt, ...others } = scan;
+
+function ReportViewRow({ scan, columnKeys }: ReportViewRowProps) {
+    const { present, status, presenceBy, createdAt, count } = scan;
 
     return (
         <TableRow>
@@ -212,11 +227,11 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
                     {finalPresent(present, status)}
                 </Badge>
             </TableCell>
-            {Object.values(others).map((v, i) => (
-                <DataTableCell key={i} value={v as string} />
+            {columnKeys?.map((colKey) => (
+                <DataTableCell key={colKey} value={String(scan[colKey] ?? "")} />
             ))}
             <TableCell>{presenceBy}</TableCell>
-            <TableCell>{createdAt && new Date(createdAt).toLocaleString()}</TableCell>
+            <TableCell>{createdAt ? new Date(createdAt).toLocaleString() : ""}</TableCell>
             <TableCell className="text-center">
                 <Badge
                     variant={status ? (status === "Valid" ? "default" : "destructive") : "ghost"}
@@ -224,14 +239,11 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
                     {status}
                 </Badge>
             </TableCell>
+            <TableCell className="text-center">{count ?? 0}</TableCell>
         </TableRow>
     );
 }
 
 function DataTableCell({ value }: { value: string }) {
-    return (
-        <TableCell key={value} className="max-w-50 truncate sm:max-w-xs">
-            {value}
-        </TableCell>
-    );
+    return <TableCell className="max-w-50 truncate sm:max-w-xs">{value}</TableCell>;
 }
