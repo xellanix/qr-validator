@@ -192,11 +192,11 @@ func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) 
 	}
 
 	var r struct {
-		allowDuplicateValid  bool
-		maxValidDuplicate    int
-		isContinuousScanning bool
+		AllowDuplicateValid  bool `json:"allowDuplicateValid"`
+		MaxValidDuplicate    int  `json:"maxValidDuplicate"`
+		IsContinuousScanning bool `json:"isContinuousScanning"`
 	}
-	err = DB.QueryRow(string(query), userHash, id).Scan(&r.allowDuplicateValid, &r.maxValidDuplicate, &r.isContinuousScanning)
+	err = DB.QueryRow(string(query), userHash, id).Scan(&r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -214,7 +214,7 @@ func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) 
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
 		value := v.Field(i).Interface()
-		res[field.Name] = value
+		res[field.Tag.Get("json")] = value
 	}
 
 	return res, nil
