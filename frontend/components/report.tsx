@@ -27,7 +27,7 @@ const finalPresent = (initial: string | undefined, status: string | undefined) =
     return initial === "Yes" && status != null ? "Yes" : "No";
 };
 
-export function ReportView() {
+export default function ReportView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const dataset = useProjectStore((s) => s.dataset);
