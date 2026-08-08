@@ -1,8 +1,11 @@
 import type { ScanEntry } from "@/types";
+import { Alert02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
 import { compareNullableStrings } from "@/lib/utils";
 import { useHistoryStore } from "@/stores/history.store";
 import { useProjectStore } from "@/stores/project.store";
+import { useUserStore } from "@/stores/user.store";
 import { DownloadReportDialog } from "@/components/dialogs/report/download";
 import { PaginationController } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +30,25 @@ const finalPresent = (initial: string | undefined, status: string | undefined) =
 };
 
 export default function ReportView() {
+    if (!useUserStore((s) => s.canReport)) {
+        return (
+            <div className="flex h-48 flex-col items-center justify-center text-center">
+                <HugeiconsIcon
+                    icon={Alert02Icon}
+                    className="mb-4 size-12 text-(--warning-foreground)"
+                />
+                <p className="font-semibold">Access Denied</p>
+                <p className="text-sm text-gray-500">
+                    You do not have permission to access this page.
+                </p>
+            </div>
+        );
+    }
+
+    return <ReportContentView />;
+}
+
+function ReportContentView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const dataset = useProjectStore((s) => s.dataset);
