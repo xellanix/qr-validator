@@ -19,6 +19,7 @@ type projectRow struct {
 	DatasetID            sql.NullString
 	Name                 string
 	SchemaObjects        string
+	SkipDatasetCheck     bool
 	AllowDuplicateValid  bool
 	MaxValidDuplicate    int
 	IsContinuousScanning bool
@@ -30,7 +31,7 @@ var projectsQueries embed.FS
 //go:embed sql/queries/project_users
 var projectUsersQueries embed.FS
 
-func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User, allowDuplicateValid bool, maxValidDuplicate int, isContinuousScanning bool) (string, error) {
+func AddProject(userHash []byte, datasetId string, name string, schemaObjects []types.SchemaObject, assignedUsers []types.User, skipDatasetCheck bool, allowDuplicateValid bool, maxValidDuplicate int, isContinuousScanning bool) (string, error) {
 	schemaBytes, err := json.Marshal(schemaObjects)
 	if err != nil {
 		return "", err
@@ -42,7 +43,7 @@ func AddProject(userHash []byte, datasetId string, name string, schemaObjects []
 	}
 
 	var id string
-	err = DB.QueryRow(string(query), sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes), allowDuplicateValid, maxValidDuplicate, isContinuousScanning).Scan(&id)
+	err = DB.QueryRow(string(query), sql.NullString{String: datasetId, Valid: datasetId != ""}, userHash, name, string(schemaBytes), skipDatasetCheck, allowDuplicateValid, maxValidDuplicate, isContinuousScanning).Scan(&id)
 	if err != nil {
 		return "", err
 	}
@@ -92,6 +93,7 @@ func getProjectWithRelations(userHash []byte, row projectRow, withDataset, exclu
 	p["id"] = row.ID
 	p["name"] = row.Name
 	p["schemaObjects"] = schema
+	p["skipDatasetCheck"] = row.SkipDatasetCheck
 	p["allowDuplicateValid"] = row.AllowDuplicateValid
 	p["maxValidDuplicate"] = row.MaxValidDuplicate
 	p["isContinuousScanning"] = row.IsContinuousScanning
@@ -155,7 +157,7 @@ func GetAllProjects(userHash []byte, withDataset bool) (map[string]any, error) {
 	projects := make(map[string]any)
 	for rows.Next() {
 		var r projectRow
-		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning); err != nil {
+		if err := rows.Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.SkipDatasetCheck, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning); err != nil {
 			continue
 		}
 
@@ -175,7 +177,7 @@ func FindProjectById(userHash []byte, id string, withDataset, excludeDatasetId b
 	}
 
 	var r projectRow
-	err = DB.QueryRow(string(query), userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
+	err = DB.QueryRow(string(query), userHash, id).Scan(&r.ID, &r.DatasetID, &r.Name, &r.SchemaObjects, &r.SkipDatasetCheck, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -192,11 +194,12 @@ func FindProjectScanOptById(userHash []byte, id string) (map[string]any, error) 
 	}
 
 	var r struct {
+		SkipDatasetCheck     bool `json:"skipDatasetCheck"`
 		AllowDuplicateValid  bool `json:"allowDuplicateValid"`
 		MaxValidDuplicate    int  `json:"maxValidDuplicate"`
 		IsContinuousScanning bool `json:"isContinuousScanning"`
 	}
-	err = DB.QueryRow(string(query), userHash, id).Scan(&r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
+	err = DB.QueryRow(string(query), userHash, id).Scan(&r.SkipDatasetCheck, &r.AllowDuplicateValid, &r.MaxValidDuplicate, &r.IsContinuousScanning)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {

@@ -1,4 +1,5 @@
 SELECT
+    skip_dataset_check,
     allow_duplicate_valid,
     max_valid_duplicate,
     is_continuous_scanning

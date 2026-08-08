@@ -89,6 +89,14 @@ export function SummarySection() {
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0">
                 <Item variant={"outline"}>
                     <ItemContent>
+                        <ItemTitle>Skip Dataset-Level Checks</ItemTitle>
+                    </ItemContent>
+                    <ItemActions className="font-mono">
+                        {newProject.data.skipDatasetCheck ? "Yes" : "No"}
+                    </ItemActions>
+                </Item>
+                <Item variant={"outline"}>
+                    <ItemContent>
                         <ItemTitle>Duplicate Valid Inputs</ItemTitle>
                     </ItemContent>
                     <ItemActions className="font-mono">

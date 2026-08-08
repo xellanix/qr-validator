@@ -168,6 +168,7 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			DatasetID            string               `json:"datasetId"`
 			SchemaObjects        []types.SchemaObject `json:"schemaObjects"`
 			Users                []types.User         `json:"users"`
+			SkipDatasetCheck     bool                 `json:"skipDatasetCheck"`
 			AllowDuplicateValid  bool                 `json:"allowDuplicateValid"`
 			MaxValidDuplicate    int                  `json:"maxValidDuplicate"`
 			IsContinuousScanning bool                 `json:"isContinuousScanning"`
@@ -190,7 +191,7 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		pID, err := db.AddProject(ctx.UserHashBytes, pData.DatasetID, pData.Name, pData.SchemaObjects, pData.Users, pData.AllowDuplicateValid, pData.MaxValidDuplicate, pData.IsContinuousScanning)
+		pID, err := db.AddProject(ctx.UserHashBytes, pData.DatasetID, pData.Name, pData.SchemaObjects, pData.Users, pData.SkipDatasetCheck, pData.AllowDuplicateValid, pData.MaxValidDuplicate, pData.IsContinuousScanning)
 		success := err == nil && pID != ""
 
 		var out any
@@ -204,6 +205,7 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 				`keyLabel`:             forward.KeyLabel,
 				`schemaObjects`:        pData.SchemaObjects,
 				`users`:                pData.Users,
+				`skipDatasetCheck`:     pData.SkipDatasetCheck,
 				`allowDuplicateValid`:  pData.AllowDuplicateValid,
 				`maxValidDuplicate`:    pData.MaxValidDuplicate,
 				`isContinuousScanning`: pData.IsContinuousScanning,

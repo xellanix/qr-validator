@@ -8,7 +8,7 @@ import { useProjectStore } from "@/stores/project.store";
 import { useSocketStore } from "@/stores/socket.store";
 import { useUserStore } from "@/stores/user.store";
 import { useValidateStore } from "@/stores/validate.store";
-import { ValidationDialog } from "@/components/dialogs/validation";
+import { ValidationDialog, trySubmitValidation } from "@/components/dialogs/validation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,7 +122,14 @@ function ScannerContentView() {
                 }
 
                 setLastMessage(`Found: ${res.decrypted.substring(0, 30)}...`);
-                useValidateStore.getState().setCandidate(schemaValidation.value);
+                const candidate = schemaValidation.value;
+                if (!project?.skipDatasetCheck) {
+                    useValidateStore.getState().setCandidate(candidate);
+                    return;
+                }
+
+                await trySubmitValidation(candidate, "Valid");
+                resumeScan();
             })();
         } else {
             setLastMessage("Scanner active...");

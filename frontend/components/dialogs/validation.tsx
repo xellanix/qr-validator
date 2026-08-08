@@ -17,19 +17,21 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 
+// eslint-disable-next-line react-refresh/only-export-components
+export const trySubmitValidation = async (candidate: string | null, status: ScanStatus) => {
+    if (!candidate) return;
+    const emitAck = useSocketStore.getState().emitAck<string>;
+    const res = await emitAck("client:history:validation", candidate, status);
+    if (res) toast.success(res);
+};
+
 export function ValidationDialog() {
     const qrData = useValidateStore((s) => s.candidate);
     const isOpen = !!qrData;
 
     const { invoke: onSubmit } = useCallbackLock(async (status: ScanStatus) => {
         const candidate = useValidateStore.getState().candidate;
-        if (candidate) {
-            const res = await useSocketStore
-                .getState()
-                .emitAck<string>("client:history:validation", candidate, status);
-
-            res && toast.success(res);
-        }
+        await trySubmitValidation(candidate, status);
         useValidateStore.getState().setCandidate(null);
     });
 
