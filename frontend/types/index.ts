@@ -3,7 +3,7 @@ export interface ScanEntry {
     id: string;
     datasetRow: string;
     presenceBy: string;
-    createdAt: string;
+    createdAt: number;
     status: ScanStatus;
 }
 

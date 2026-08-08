@@ -1,5 +1,4 @@
 import type { ScanEntry } from "@/types";
-import type { DatasetRow } from "@/types/dataset";
 import { useMemo, useState } from "react";
 import { compareNullableStrings } from "@/lib/utils";
 import { useHistoryStore } from "@/stores/history.store";
@@ -18,7 +17,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-type JoinedDatasetType = DatasetRow &
+type JoinedDatasetType = Record<string, string | number> &
     Partial<Pick<ScanEntry, "presenceBy" | "createdAt" | "status">> & {
         present?: "Yes" | "No";
     };
@@ -76,11 +75,14 @@ export default function ReportView() {
             if (c !== 0) return c;
 
             if (datasetKey) {
-                c = compareNullableStrings(a[datasetKey], b[datasetKey]);
+                c = compareNullableStrings(
+                    a[datasetKey] as string | undefined,
+                    b[datasetKey] as string | undefined,
+                );
                 if (c !== 0) return c;
             }
 
-            return compareNullableStrings(a.createdAt, b.createdAt);
+            return (a.createdAt || -1) - (b.createdAt || -1);
         });
     }, [dataset, history, datasetKey]);
 
@@ -92,7 +94,7 @@ export default function ReportView() {
         return sortedDataset.filter((entry) => {
             if (datasetKey in entry === false) return false;
 
-            return entry[datasetKey]?.toLowerCase().includes(searchTerm.toLowerCase());
+            return (entry[datasetKey] as string).toLowerCase().includes(searchTerm.toLowerCase());
         });
     }, [sortedDataset, datasetKey, searchTerm]);
 
@@ -168,7 +170,7 @@ export default function ReportView() {
 }
 
 interface ReportViewRowProps {
-    scan: Record<string, string>;
+    scan: JoinedDatasetType;
 }
 function ReportViewRow({ scan }: ReportViewRowProps) {
     const { present, status, presenceBy, createdAt, ...others } = scan;
@@ -189,10 +191,10 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
                 </Badge>
             </TableCell>
             {Object.values(others).map((v, i) => (
-                <DataTableCell key={i} value={v} />
+                <DataTableCell key={i} value={v as string} />
             ))}
             <TableCell>{presenceBy}</TableCell>
-            <TableCell>{new Date(createdAt).toLocaleString()}</TableCell>
+            <TableCell>{createdAt && new Date(createdAt).toLocaleString()}</TableCell>
             <TableCell className="text-center">
                 <Badge
                     variant={status ? (status === "Valid" ? "default" : "destructive") : "ghost"}
