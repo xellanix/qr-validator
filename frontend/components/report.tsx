@@ -165,7 +165,7 @@ function ReportContentView() {
                                     <TableHead className="text-center">Count</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
+                            <TableBody className="after:h-full after:table-row">
                                 {paginatedDataset.length > 0 ? (
                                     paginatedDataset.map((scan, index) => {
                                         const rowKey = datasetKey
@@ -180,9 +180,9 @@ function ReportContentView() {
                                         );
                                     })
                                 ) : (
-                                    <TableRow>
+                                    <TableRow className="h-full">
                                         <TableCell
-                                            colSpan={4 + (columnKeys?.length ?? 0)}
+                                            colSpan={5 + (columnKeys?.length ?? 0)}
                                             className="text-center"
                                         >
                                             No results found.

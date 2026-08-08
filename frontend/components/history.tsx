@@ -93,13 +93,13 @@ export function HistoryView() {
                             {canDelete && <TableHead className="text-center">Actions</TableHead>}
                         </TableRow>
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="after:h-full after:table-row">
                         {paginatedHistory.length > 0 ? (
                             paginatedHistory.map((scan) => (
                                 <HistoryViewRow key={scan.id} scan={scan} canDelete={canDelete} />
                             ))
                         ) : (
-                            <TableRow>
+                            <TableRow className="h-full">
                                 <TableCell colSpan={canDelete ? 5 : 4} className="text-center">
                                     No results found.
                                 </TableCell>
