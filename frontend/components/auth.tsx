@@ -50,7 +50,7 @@ export function AuthView() {
 
     return (
         <Card className="size-full p-6 *:px-0 overflow-y-auto gap-0">
-            <CardHeader className="sticky top-0 bg-inherit pb-6">
+            <CardHeader className="pb-6">
                 <CardTitle>Authentication Required</CardTitle>
                 <CardDescription>
                     Provide your access key by pasting it or uploading a key file.
