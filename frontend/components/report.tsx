@@ -23,6 +23,7 @@ import {
 type JoinedDatasetType = Record<string, string | number> &
     Partial<Pick<ScanEntry, "presenceBy" | "createdAt" | "status">> & {
         present?: "Yes" | "No";
+        count?: number;
     };
 
 const finalPresent = (initial: string | undefined, status: string | undefined) => {
@@ -69,14 +70,11 @@ function ReportContentView() {
 
         const joinedDataset = Array.from(dataset.entries(), ([key, value]): JoinedDatasetType => {
             let lookup: ScanEntry | null = null;
+            let count = 0;
             for (const scan of history) {
                 if (scan.datasetRow === key) {
-                    if (!(lookup === null || scan.status === "Valid")) continue;
-
-                    lookup = scan;
-                    if (scan.status === "Valid") {
-                        break;
-                    }
+                    if (lookup === null) lookup = scan;
+                    count++;
                 }
             }
             if (!lookup) return value;
@@ -87,6 +85,7 @@ function ReportContentView() {
                 presenceBy: lookup.presenceBy,
                 createdAt: lookup.createdAt,
                 status: lookup.status,
+                count,
             };
         });
 
@@ -159,6 +158,7 @@ function ReportContentView() {
                                     <TableHead>Presence By</TableHead>
                                     <TableHead>Created At</TableHead>
                                     <TableHead className="text-center">Status</TableHead>
+                                    <TableHead className="text-center">Count</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -195,7 +195,7 @@ interface ReportViewRowProps {
     scan: JoinedDatasetType;
 }
 function ReportViewRow({ scan }: ReportViewRowProps) {
-    const { present, status, presenceBy, createdAt, ...others } = scan;
+    const { present, status, presenceBy, createdAt, count, ...others } = scan;
 
     return (
         <TableRow>
@@ -224,6 +224,7 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
                     {status}
                 </Badge>
             </TableCell>
+            <TableCell className="text-center">{count}</TableCell>
         </TableRow>
     );
 }
