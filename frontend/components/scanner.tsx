@@ -11,8 +11,9 @@ import { useValidateStore } from "@/stores/validate.store";
 import { ValidationDialog } from "@/components/dialogs/validation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function ScannerView() {
+function ScannerContentView() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const cameraRef = useRef<Awaited<ReturnType<typeof frontalCamera>> | null>(null);
     const canvasRef = useRef<QRCanvas | null>(null);
@@ -236,5 +237,18 @@ export function ScannerView() {
             </Button>
             <ValidationDialog />
         </div>
+    );
+}
+
+export default function ScannerView() {
+    return (
+        <Card className="h-full overflow-hidden p-0 *:px-6 *:first:pt-6 *:last:pb-6">
+            <CardHeader>
+                <CardTitle>Scan QR Code</CardTitle>
+            </CardHeader>
+            <CardContent className="flex h-full flex-col justify-center overflow-hidden">
+                <ScannerContentView />
+            </CardContent>
+        </Card>
     );
 }

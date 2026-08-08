@@ -24,12 +24,8 @@ export function Synchronizer() {
     useEffect(() => {
         if (!socket) return;
 
-        type UpdatedEntry = Omit<ScanEntry, "createdAt"> & { createdAt: number | string };
-        const update = (updatedHistory: UpdatedEntry[]) => {
-            for (const entry of updatedHistory) {
-                entry.createdAt = String(entry.createdAt);
-            }
-            useHistoryStore.getState().setEntries((updatedHistory as ScanEntry[]) ?? []);
+        const update = (updatedHistory: ScanEntry[]) => {
+            useHistoryStore.getState().setEntries(updatedHistory ?? []);
         };
         socket.emit("client:history:init");
         socket.on("server:history:update", update);

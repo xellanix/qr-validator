@@ -180,7 +180,7 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		batchNumber := getCachedBatchNumber(pID)
+		batchNumber := getCachedBatchNumber(lib.BytesToBase64(creatorBytes))
 		if batchNumber == 0 {
 			invokeAck(args, types.SocketResponse{Status: "error", Error: fmt.Sprintf("Failed to get batch number for project: %s", pID)})
 			return

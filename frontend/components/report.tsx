@@ -1,9 +1,11 @@
 import type { ScanEntry } from "@/types";
-import type { DatasetRow } from "@/types/dataset";
+import { Alert02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
 import { compareNullableStrings } from "@/lib/utils";
 import { useHistoryStore } from "@/stores/history.store";
 import { useProjectStore } from "@/stores/project.store";
+import { useUserStore } from "@/stores/user.store";
 import { DownloadReportDialog } from "@/components/dialogs/report/download";
 import { PaginationController } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-type JoinedDatasetType = DatasetRow &
+type JoinedDatasetType = Record<string, string | number> &
     Partial<Pick<ScanEntry, "presenceBy" | "createdAt" | "status">> & {
         present?: "Yes" | "No";
     };
@@ -27,7 +29,26 @@ const finalPresent = (initial: string | undefined, status: string | undefined) =
     return initial === "Yes" && status != null ? "Yes" : "No";
 };
 
-export function ReportView() {
+export default function ReportView() {
+    if (!useUserStore((s) => s.canReport)) {
+        return (
+            <div className="flex h-48 flex-col items-center justify-center text-center">
+                <HugeiconsIcon
+                    icon={Alert02Icon}
+                    className="mb-4 size-12 text-(--warning-foreground)"
+                />
+                <p className="font-semibold">Access Denied</p>
+                <p className="text-sm text-gray-500">
+                    You do not have permission to access this page.
+                </p>
+            </div>
+        );
+    }
+
+    return <ReportContentView />;
+}
+
+function ReportContentView() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const dataset = useProjectStore((s) => s.dataset);
@@ -76,11 +97,14 @@ export function ReportView() {
             if (c !== 0) return c;
 
             if (datasetKey) {
-                c = compareNullableStrings(a[datasetKey], b[datasetKey]);
+                c = compareNullableStrings(
+                    a[datasetKey] as string | undefined,
+                    b[datasetKey] as string | undefined,
+                );
                 if (c !== 0) return c;
             }
 
-            return compareNullableStrings(a.createdAt, b.createdAt);
+            return (a.createdAt || -1) - (b.createdAt || -1);
         });
     }, [dataset, history, datasetKey]);
 
@@ -92,7 +116,7 @@ export function ReportView() {
         return sortedDataset.filter((entry) => {
             if (datasetKey in entry === false) return false;
 
-            return entry[datasetKey]?.toLowerCase().includes(searchTerm.toLowerCase());
+            return (entry[datasetKey] as string).toLowerCase().includes(searchTerm.toLowerCase());
         });
     }, [sortedDataset, datasetKey, searchTerm]);
 
@@ -168,7 +192,7 @@ export function ReportView() {
 }
 
 interface ReportViewRowProps {
-    scan: Record<string, string>;
+    scan: JoinedDatasetType;
 }
 function ReportViewRow({ scan }: ReportViewRowProps) {
     const { present, status, presenceBy, createdAt, ...others } = scan;
@@ -189,10 +213,10 @@ function ReportViewRow({ scan }: ReportViewRowProps) {
                 </Badge>
             </TableCell>
             {Object.values(others).map((v, i) => (
-                <DataTableCell key={i} value={v} />
+                <DataTableCell key={i} value={v as string} />
             ))}
             <TableCell>{presenceBy}</TableCell>
-            <TableCell>{new Date(createdAt).toLocaleString()}</TableCell>
+            <TableCell>{createdAt && new Date(createdAt).toLocaleString()}</TableCell>
             <TableCell className="text-center">
                 <Badge
                     variant={status ? (status === "Valid" ? "default" : "destructive") : "ghost"}
