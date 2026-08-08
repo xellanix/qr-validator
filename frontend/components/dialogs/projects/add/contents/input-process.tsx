@@ -16,6 +16,22 @@ export function InputProcessSection() {
             <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
                 <Item variant={"outline"}>
                     <ItemContent>
+                        <ItemTitle>Skip Dataset-Level Checks</ItemTitle>
+                        <ItemDescription className="line-clamp-none">
+                            Runs input-level checks only and suppresses the dataset validation
+                            dialog. Inputs that pass input-level checks are automatically marked
+                            valid.
+                        </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                        <SkipDatasetChecksAction />
+                    </ItemActions>
+                </Item>
+            </ItemGroup>
+
+            <ItemGroup className="*:not-first:rounded-t-none *:not-first:border-t-0 *:not-last:rounded-b-none gap-0!">
+                <Item variant={"outline"}>
+                    <ItemContent>
                         <ItemTitle>Allow Duplicate Valid Inputs</ItemTitle>
                         <ItemDescription className="line-clamp-none">
                             Allows the system to record multiple identical valid data. When
@@ -45,6 +61,24 @@ export function InputProcessSection() {
             </ItemGroup>
         </>
     );
+}
+
+function SkipDatasetChecksAction() {
+    const skipDatasetCheck = useProjectStore((s) => s.newProject?.data?.skipDatasetCheck || false);
+
+    const checkChanged = (v: boolean) => {
+        useProjectStore.setState((s) => {
+            if (!s.newProject?.data) return s;
+            return {
+                newProject: {
+                    ...s.newProject,
+                    data: { ...s.newProject.data, skipDatasetCheck: v },
+                },
+            };
+        });
+    };
+
+    return <Switch checked={skipDatasetCheck} onCheckedChange={checkChanged} />;
 }
 
 function AllowDuplicateValidAction() {

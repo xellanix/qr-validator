@@ -35,6 +35,7 @@ export function NewProjectButton({ children }: { children?: React.ReactNode }) {
                                   schemaObjects: [],
                                   schema: string(),
                                   users: [],
+                                  skipDatasetCheck: false,
                                   allowDuplicateValid: false,
                                   maxValidDuplicate: 2,
                                   isContinuousScanning: true,

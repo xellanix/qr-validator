@@ -18,6 +18,8 @@ export type Project = {
     schemaObjects: SchemaObject[];
     /** The users that have access to this project */
     users: User[];
+    /** Whether the project should skip the dataset-level checks */
+    skipDatasetCheck: boolean;
     /** Whether the project allows duplicate valid */
     allowDuplicateValid: boolean;
     /** The maximum number of valid duplicates allowed */

@@ -74,6 +74,7 @@ export function ProcessSection() {
                     name: data.name,
                     schemaObjects: data.schemaObjects.map(({ sortId, ...rest }) => rest),
                     users: data.users,
+                    skipDatasetCheck: data.skipDatasetCheck,
                     allowDuplicateValid: data.allowDuplicateValid,
                     maxValidDuplicate: data.maxValidDuplicate,
                     isContinuousScanning: data.isContinuousScanning,

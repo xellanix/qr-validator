@@ -1,0 +1,2 @@
+ALTER TABLE projects
+ADD COLUMN skip_dataset_check BOOLEAN NOT NULL DEFAULT 0;

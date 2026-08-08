@@ -141,6 +141,7 @@ const serverToFrontend = (projects: Record<string, ProjectWithDataset>) => {
         _ps[k].schemaObjects = schemas;
         _ps[k].schema = schemaObjectsToZod(schemas);
 
+        _ps[k].skipDatasetCheck ??= false;
         _ps[k].allowDuplicateValid ??= false;
         _ps[k].maxValidDuplicate = Math.max(2, (_ps[k].maxValidDuplicate ?? 2) as number);
         _ps[k].isContinuousScanning = _ps[k].allowDuplicateValid
@@ -156,6 +157,7 @@ const updateServerProject = (project: ProjectItem, prev: ProjectItem) => {
         "datasetId",
         "schemaObjects",
         "users",
+        "skipDatasetCheck",
         "allowDuplicateValid",
         "maxValidDuplicate",
         "isContinuousScanning",

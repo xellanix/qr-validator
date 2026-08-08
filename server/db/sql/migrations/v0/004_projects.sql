@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	creator_user_hash BLOB,
 	name TEXT,
 	schema_objects TEXT,
+	skip_dataset_check BOOLEAN NOT NULL DEFAULT 0,
 	allow_duplicate_valid BOOLEAN,
 	max_valid_duplicate INTEGER,
 	is_continuous_scanning BOOLEAN,

@@ -165,6 +165,9 @@ func registerHistoryHandlers(io *socket.Server, client *socket.Socket) {
 
 		project, _ := db.FindProjectScanOptById(creatorBytes, pID)
 		if project != nil {
+			if v, ok := project["skipDatasetCheck"].(bool); ok && v {
+				status = "Valid"
+			}
 			if v, ok := project["allowDuplicateValid"].(bool); ok {
 				allowDuplicateValid = v
 			}
