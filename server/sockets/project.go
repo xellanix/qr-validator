@@ -1,6 +1,7 @@
 package sockets
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"premark/lib"
 	"premark/persist"
 	"premark/types"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -22,6 +24,8 @@ type projectMetadataCache struct {
 	id          string
 	batchNumber int
 }
+
+type set = map[string]struct{}
 
 var (
 	// Thread-safe map storage contexts for tracking console operational triggers.
@@ -56,6 +60,49 @@ func getCachedBatchNumber(creatorHash string) int {
 	pCache.mu.Lock()
 	defer pCache.mu.Unlock()
 	return pCache.batchNumber
+}
+
+func structToMapReflect(obj any, keys set) map[string]any {
+	result := make(map[string]any)
+	val := reflect.ValueOf(obj)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		return result
+	}
+
+	typ := val.Type()
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+
+		if !field.IsExported() {
+			continue
+		}
+
+		tag := field.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+
+		parts := strings.Split(tag, ",")
+		key := parts[0]
+		if key == "" {
+			key = field.Name
+		}
+
+		if keys != nil {
+			if _, ok := keys[key]; !ok {
+				continue
+			}
+		}
+
+		result[key] = val.Field(i).Interface()
+	}
+
+	return result
 }
 
 func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
@@ -173,11 +220,6 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			MaxValidDuplicate    int                  `json:"maxValidDuplicate"`
 			IsContinuousScanning bool                 `json:"isContinuousScanning"`
 		}
-		type forwardData struct {
-			Columns  map[string]string `json:"columns"`
-			Key      string            `json:"key"`
-			KeyLabel string            `json:"keyLabel"`
-		}
 
 		pData, err := lib.TryParseJson[projectData](args[0])
 		if err != nil {
@@ -185,7 +227,8 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 			return
 		}
 
-		forward, err := lib.TryParseJson[forwardData](args[1])
+		var forward types.DatasetPayload
+		err = json.Unmarshal([]byte(args[1].(string)), &forward)
 		if err != nil {
 			client.Emit("server:response:error", fmt.Sprintf("Failed parsing forward data: %s", err.Error()))
 			return
@@ -227,21 +270,48 @@ func registerProjectHandlers(io *socket.Server, client *socket.Socket) {
 		id, _ := args[0].(string)
 		datasetID, _ := args[1].(string)
 
+		if id == "" {
+			client.Emit("server:response:error", "Project identifier tracking cannot be empty.")
+			return
+		}
+
 		projectsPayload, err := lib.TryParseJson[map[string]any](args[2])
 		if err != nil {
 			client.Emit("server:response:error", fmt.Sprintf("Failed parsing project data: %s", err.Error()))
 			return
 		}
 
-		datasetsPayload, err := lib.TryParseJson[map[string]any](args[3])
-		if err != nil {
-			client.Emit("server:response:error", fmt.Sprintf("Failed parsing dataset data: %s", err.Error()))
-			return
-		}
-
+		var datasetsPayload map[string]any
 		var changes int64
-		if len(datasetsPayload) > 0 && datasetID != "" {
-			c, err := db.UpdateDataset(ctx.UserHashBytes, datasetID, datasetsPayload)
+		if datasetID != "" {
+			payloadStr, ok := args[3].(string)
+			if !ok {
+				client.Emit("server:response:error", "Invalid dataset update payload.")
+				return
+			}
+			payloadBytes := []byte(payloadStr)
+
+			payloadKeys := make(set)
+			{
+				var data map[string]any
+				err = json.Unmarshal(payloadBytes, &data)
+				if err != nil {
+					client.Emit("server:response:error", fmt.Sprintf("Failed parsing dataset payload: %s", err.Error()))
+					return
+				}
+				for key := range data {
+					payloadKeys[key] = struct{}{}
+				}
+			}
+
+			dsPayload, err := db.GetPartialUpdateDataset(ctx.UserHashBytes, datasetID, payloadBytes)
+			if err != nil {
+				client.Emit("server:response:error", fmt.Sprintf("Failed parsing dataset data: %s", err.Error()))
+				return
+			}
+			datasetsPayload = structToMapReflect(dsPayload, payloadKeys)
+
+			c, err := db.UpdateDataset(ctx.UserHashBytes, datasetID, dsPayload)
 			if err == nil {
 				changes += c
 			}

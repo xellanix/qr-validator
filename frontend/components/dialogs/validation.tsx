@@ -61,19 +61,19 @@ export function ValidationDialog() {
 
 async function getValidationFields(keyValue: DatasetRowValue) {
     const _active = useProjectStore.getState().activeProject();
-    if (!_active) return;
+    if (!_active?.id || !_active.columns) return;
 
     const emitAck = useSocketStore.getState().emitAck<DatasetRow>;
     const detailed = await emitAck("client:dataset:row:get", _active.id, true, keyValue);
     if (!detailed) return;
 
-    const built = Object.entries(detailed).map(([key, value]) => {
-        const columns = _active.columns;
-        if (key in columns) {
-            return fieldBuilder[columns[key]](value);
-        }
-    });
+    const built: React.ReactNode[] = [];
+    for (const key in _active.columns) {
+        if (!Object.hasOwn(_active.columns, key)) continue;
 
+        const column = _active.columns[key];
+        built.push(fieldBuilder[column](detailed[key] || "Not Set"));
+    }
     return built;
 }
 

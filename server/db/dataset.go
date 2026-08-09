@@ -4,6 +4,7 @@ import (
 	"crypto/cipher"
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"os"
 	"sync"
 
@@ -322,35 +323,27 @@ func FindDatasetRows(id string, isProject bool, keyHash any) ([]types.DatasetRow
 	return list, nil
 }
 
-func UpdateDataset(userHash []byte, id string, datasetsPayload map[string]any) (int64, error) {
-	prev, err := FindDatasetById(userHash, id, false)
+func GetPartialUpdateDataset(userHash []byte, id string, datasetsPayload []byte) (res types.DatasetPayload, err error) {
+	var prev *types.DatasetWithRows
+	prev, err = FindDatasetById(userHash, id, false)
 	if err != nil || prev == nil {
-		return 0, err
+		return
 	}
 
-	// Marshals through a generic structural map to update properties dynamically
-	intermediate, err := lib.TryParseJson[map[string]any](prev.DatasetPayload)
-	if err != nil {
-		return 0, err
+	if err = json.Unmarshal(datasetsPayload, &prev.DatasetPayload); err == nil {
+		res = prev.DatasetPayload
 	}
 
-	for k, v := range datasetsPayload {
-		if _, exists := intermediate[k]; exists {
-			intermediate[k] = v
-		}
-	}
+	return
+}
 
-	target, err := lib.TryParseJson[types.DatasetPayload](intermediate)
-	if err != nil {
-		return 0, err
-	}
-
+func UpdateDataset(userHash []byte, id string, datasetsPayload types.DatasetPayload) (int64, error) {
 	gcm, err := getDatasetGCM()
 	if err != nil {
 		return 0, err
 	}
 
-	payload, err := encryptJSON(target, gcm)
+	payload, err := encryptJSON(datasetsPayload, gcm)
 	if err != nil {
 		return 0, err
 	}

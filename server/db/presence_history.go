@@ -176,8 +176,8 @@ func GenerateReport(projectId string, batchNumber int, sorted bool) ([]string, [
 	}
 
 	var headers []string
-	for k := range ds.Columns {
-		headers = append(headers, k)
+	for pair := ds.Columns.Oldest(); pair != nil; pair = pair.Next() {
+		headers = append(headers, pair.Key)
 	}
 
 	var result []ReportRow

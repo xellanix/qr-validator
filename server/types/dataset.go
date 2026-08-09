@@ -1,12 +1,18 @@
 package types
 
-type DataContentType map[string]string // "text" | "image"
+import (
+	orderedMap "github.com/wk8/go-ordered-map/v2"
+)
+
+type DataContentType = *orderedMap.OrderedMap[string, string] // "text" | "image"
 
 type DatasetPayload struct {
 	Key      string          `json:"key"`
 	KeyLabel string          `json:"keyLabel"`
 	Columns  DataContentType `json:"columns"`
 }
+
+//type DatasetPayloadMap = *orderedMap.OrderedMap[string, any]
 
 type DatasetRow map[string]string
 
