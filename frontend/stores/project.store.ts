@@ -185,7 +185,7 @@ const updateServerProject = (project: ProjectItem, prev: ProjectItem) => {
             project.id,
             project.datasetId,
             projectsPayload,
-            datasetsPayload,
+            JSON.stringify(datasetsPayload),
         );
 };
 

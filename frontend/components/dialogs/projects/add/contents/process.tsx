@@ -37,11 +37,11 @@ export function ProcessSection() {
             if (!np || !data || datasetId == null)
                 return quickError("Project data or dataset not found.");
 
-            const datasetPayload = {
+            const datasetPayload = JSON.stringify({
                 columns: data.columns,
                 key: data.key,
                 keyLabel: data.keyLabel,
-            };
+            });
 
             if (datasetId === "uploaded" && np.uploadedDatasetBuffer) {
                 const { emitAck } = useSocketStore.getState();
